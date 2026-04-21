@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 
 // --- Імпорти сторінок ---
+import Reports from './pages/admin/Reports';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -10,6 +11,9 @@ import Dashboard from './pages/Dashboard';
 import Materials from './pages/Materials';
 import Grades from './pages/Grades';
 import Messages from './pages/Messages';
+import Homework from './pages/Homework';
+import Schedule from './pages/Schedule';
+import Attendance from './pages/Attendance';
 
 // --- Адмінські сторінки ---
 import UsersManagement from './pages/admin/UsersManagement';
@@ -47,18 +51,20 @@ function App() {
               <Route path="/materials" element={<Materials />} />
               <Route path="/grades" element={<Grades />} />
               <Route path="/messages" element={<Messages />} />
-
-              {/* Модулі-заглушки (щоб картки на Дашборді працювали) */}
-              <Route path="/schedule" element={<Placeholder title="Розклад занять" />} />
-              <Route path="/attendance" element={<Placeholder title="Облік відвідуваності" />} />
-              <Route path="/homework" element={<Placeholder title="Домашні завдання" />} />
+              <Route path="/schedule" element={<Schedule />} />
+              <Route path="/attendance" element={<Attendance />} />
+              <Route path="/homework" element={<Homework />} />
 
               {/* МАРШРУТИ АДМІНІСТРАТОРА (Тільки для ролі 'admin') */}
               <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                 <Route path="/admin/users" element={<UsersManagement />} />
                 <Route path="/admin/academic" element={<AcademicManagement />} />
                 <Route path="/admin/assignments" element={<AssignmentsManagement />} />
-                <Route path="/reports" element={<Placeholder title="Звіти та аналітика" />} />
+              </Route>
+
+              {/* АНАЛІТИКА (Для Адміна та Вчителя) */}
+              <Route element={<ProtectedRoute allowedRoles={['admin', 'teacher']} />}>
+                <Route path="/reports" element={<Reports />} />
               </Route>
             </Route>
           </Route>
