@@ -13,24 +13,21 @@ const router = Router();
 router.use(authenticate);
 
 // Ліва панель (список чатів)
+// 1. Статичні роути (БЕЗ параметрів)
 router.get('/dialogues', getDialogues);
 
-// Права панель (історія конкретного чату)
-router.get('/:partnerId', getChatHistory);
+router.post('/broadcast', [
+  body('class_id').isInt().withMessage('ID класу обов\'язкове'),
+  body('content').notEmpty().trim().escape().withMessage('Повідомлення не може бути порожнім')
+], sendBroadcastMessage);
 
-// Позначити чат прочитаним
-router.put('/:partnerId/read', markAsRead);
-
-// Відправити 1 на 1
 router.post('/', [
   body('receiver_id').isInt().withMessage('ID отримувача обов\'язкове'),
   body('content').notEmpty().trim().escape().withMessage('Повідомлення не може бути порожнім')
 ], sendMessage);
 
-// Масова розсилка (Тільки педагог)
-router.post('/broadcast', [
-  body('class_id').isInt().withMessage('ID класу обов\'язкове'),
-  body('content').notEmpty().trim().escape().withMessage('Повідомлення не може бути порожнім')
-], sendBroadcastMessage);
+// 2. Динамічні роути (З параметрами - повинні бути в кінці!)
+router.get('/:partnerId', getChatHistory);
+router.put('/:partnerId/read', markAsRead);
 
 export default router;

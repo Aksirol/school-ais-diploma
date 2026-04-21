@@ -85,10 +85,21 @@ export const getMaterials = async (req: AuthRequest, res: Response): Promise<voi
       whereClause.teacher_subject_id = allowedTeacherSubjectIds;
     }
 
-    // Фільтрація (якщо передані query параметри)
+    // Фільтрація (якщо передані query параметри з фронтенду)
     if (class_id || subject_id) {
-       // Логіка підключення фільтрів через include TeacherSubject (опущено для лаконічності, 
-       // але Sequelize дозволяє фільтрувати по пов'язаних таблицях)
+      const tsWhere: any = {};
+      if (class_id) tsWhere.class_id = class_id;
+      if (subject_id) tsWhere.subject_id = subject_id;
+      
+      const filtered = await TeacherSubject.findAll({ where: tsWhere });
+      const filteredIds = filtered.map(a => a.id);
+      
+      // Перетинаємо масиви: залишаємо лише ті ID, які і дозволені користувачу, і відповідають фільтрам
+      if (user.role !== 'admin') {
+        whereClause.teacher_subject_id = allowedTeacherSubjectIds.filter(id => filteredIds.includes(id));
+      } else {
+        whereClause.teacher_subject_id = filteredIds;
+      }
     }
 
     const materials = await Material.findAll({

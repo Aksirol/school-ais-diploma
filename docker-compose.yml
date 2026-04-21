@@ -3,11 +3,11 @@ services:
     image: postgres:15.6-alpine
     container_name: ais_postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: rootpassword
-      POSTGRES_DB: school_ais
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      POSTGRES_DB: ${DB_NAME:-school_ais}
     ports:
-      - "5433:5432"
+      - "5433:5432" # Використовуємо ваш змінений порт
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
@@ -16,8 +16,8 @@ services:
     image: dpage/pgadmin4:8.4
     container_name: ais_pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@school.ua
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@school.ua}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
     ports:
       - "5050:80"
     depends_on:

@@ -48,7 +48,18 @@ app.get('/api/health', (req: Request, res: Response) => {
 const startServer = async () => {
   try {
     await connectDB();
-    await sequelize.sync({ alter: true });
+    // СИНХРОНІЗАЦІЯ БАЗИ ДАНИХ
+    // Увага: alter: true використовується виключно для середовища розробки.
+    // На продакшені (NODE_ENV === 'production') синхронізацію слід вимкнути 
+    // і використовувати виключно механізм міграцій (наприклад, Umzug) 
+    // для уникнення ризику випадкової втрати даних при зміні типів колонок.
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (isDev) {
+      await sequelize.sync({ alter: true });
+      console.log('Таблиці бази даних успішно синхронізовано (Development mode).');
+    } else {
+      console.log('База даних підключена (Production mode - міграції застосовуються окремо).');
+    }
     console.log('Таблиці бази даних успішно синхронізовано.');
 
     // СТВОРЮЄМО HTTP СЕРВЕР ТА ПІДКЛЮЧАЄМО СОКЕТИ:
