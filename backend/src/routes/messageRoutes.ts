@@ -6,7 +6,10 @@ import {
   sendBroadcastMessage, 
   getChatHistory, 
   getDialogues, 
-  markAsRead 
+  markAsRead,
+  getUsersForChat,
+  editMessage, 
+  deleteMessage
 } from '../controllers/messageController';
 
 const router = Router();
@@ -15,6 +18,9 @@ router.use(authenticate);
 // Ліва панель (список чатів)
 // 1. Статичні роути (БЕЗ параметрів)
 router.get('/dialogues', getDialogues);
+router.get('/users', getUsersForChat);
+router.put('/msg/:id', editMessage);
+router.delete('/msg/:id', deleteMessage);
 
 router.post('/broadcast', [
   body('class_id').isInt().withMessage('ID класу обов\'язкове'),

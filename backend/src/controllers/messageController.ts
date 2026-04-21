@@ -157,19 +157,108 @@ export const getDialogues = async (req: AuthRequest, res: Response): Promise<voi
 };
 
 // 5. Позначити повідомлення як прочитані
+// 5. Позначити повідомлення як прочитані
 export const markAsRead = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
     const partnerId = req.params.partnerId;
 
     // Позначаємо прочитаними всі повідомлення ВІД партнера ДО нас
-    await Message.update(
+    const [updatedCount] = await Message.update(
       { is_read: true },
       { where: { sender_id: partnerId, receiver_id: userId, is_read: false } }
     );
 
+    // НОВЕ: Якщо хоча б одне повідомлення змінило статус, сповіщаємо відправника через сокети
+    if (updatedCount > 0) {
+      const { getIO } = await import('../socket');
+      // Сповіщаємо partnerId (того, хто нам писав), що userId (ми) прочитали його повідомлення
+      getIO().to(`user_${partnerId}`).emit('messagesRead', { readerId: userId });
+    }
+
     res.status(200).json({ message: 'Прочитано' });
   } catch (error: any) {
     res.status(500).json({ message: 'Помилка оновлення статусу', error: error.message });
+  }
+};
+
+// Отримати список усіх підтверджених користувачів для пошуку в чаті
+export const getUsersForChat = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const users = await User.findAll({
+      where: { is_approved: true },
+      attributes: ['id', 'first_name', 'last_name', 'role'],
+      order: [['last_name', 'ASC']]
+    });
+    // Відфільтровуємо самого себе
+    const filteredUsers = users.filter(u => u.id !== req.user!.id);
+    res.status(200).json(filteredUsers);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка завантаження користувачів' });
+  }
+};
+
+// 6. Редагувати повідомлення
+export const editMessage = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    const userId = req.user!.id;
+
+    const message = await Message.findByPk(id);
+
+    if (!message) {
+      res.status(404).json({ message: 'Повідомлення не знайдено' });
+      return;
+    }
+
+    if (message.sender_id !== userId) {
+      res.status(403).json({ message: 'Ви можете редагувати лише власні повідомлення' });
+      return;
+    }
+
+    message.content = content;
+    await message.save();
+
+    // Сповіщаємо обох учасників через сокети
+    const { getIO } = await import('../socket');
+    getIO().to(`user_${message.receiver_id}`).emit('messageEdited', message);
+    getIO().to(`user_${message.sender_id}`).emit('messageEdited', message);
+
+    res.status(200).json(message);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка редагування', error: error.message });
+  }
+};
+
+// 7. Видалити повідомлення
+export const deleteMessage = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    const message = await Message.findByPk(id);
+
+    if (!message) {
+      res.status(404).json({ message: 'Повідомлення не знайдено' });
+      return;
+    }
+
+    if (message.sender_id !== userId) {
+      res.status(403).json({ message: 'Ви можете видаляти лише власні повідомлення' });
+      return;
+    }
+
+    const receiverId = message.receiver_id;
+    await message.destroy();
+
+    // Сповіщаємо про видалення (передаємо ID видаленого повідомлення)
+    const { getIO } = await import('../socket');
+    getIO().to(`user_${receiverId}`).emit('messageDeleted', id);
+    getIO().to(`user_${userId}`).emit('messageDeleted', id);
+
+    res.status(200).json({ message: 'Видалено' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка видалення', error: error.message });
   }
 };

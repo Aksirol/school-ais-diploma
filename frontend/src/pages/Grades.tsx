@@ -27,7 +27,6 @@ const Grades = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<number | null>(null);
   const [journal, setJournal] = useState<JournalEntry[]>([]);
-  const [setIsLoading] = useState(false);
 
   // Для модального вікна додавання оцінки
   const [isModalOpen, setIsModalOpen] = useState(false);
