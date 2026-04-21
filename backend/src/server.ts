@@ -12,6 +12,9 @@ import materialRoutes from './routes/materialRoutes';
 import gradeRoutes from './routes/gradeRoutes';
 import path from 'path'; 
 import messageRoutes from './routes/messageRoutes';
+import homeworkRoutes from './routes/homeworkRoutes';
+import attendanceRoutes from './routes/attendanceRoutes';
+import scheduleRoutes from './routes/scheduleRoutes';
 
 // Імпортуємо головний файл моделей, щоб Sequelize знав про них і їхні зв'язки
 // ДО того, як відбудеться синхронізація
@@ -32,6 +35,9 @@ app.use('/api/academic', academicRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+app.use('/api/homework', homeworkRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/schedule', scheduleRoutes);
 
 app.use('/api/materials', materialRoutes);
 app.use('/api/grades', gradeRoutes);

@@ -50,7 +50,16 @@ const Attendance = () => {
   };
 
   const handleSave = async () => {
-    alert(`Тут буде POST запит до /attendance.\nДата: ${date}\nКлас: ${selectedAssignment}\nДані: ${JSON.stringify(attendance)}`);
+    try {
+      await api.post('/attendance', {
+        date,
+        teacher_subject_id: Number(selectedAssignment),
+        records: attendance
+      });
+      alert('Журнал успішно збережено!');
+    } catch (error) {
+      alert('Помилка збереження');
+    }
   };
 
   if (user?.role === 'student') {
