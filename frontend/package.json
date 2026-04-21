@@ -18,6 +18,7 @@
     "react-hook-form": "^7.51.3",
     "react-router-dom": "^6.23.0",
     "recharts": "^2.12.7",
+    "socket.io-client": "^4.7.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

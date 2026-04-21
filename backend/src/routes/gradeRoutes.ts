@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { authenticate } from '../middlewares/authMiddleware';
-import { addGrade, getGrades } from '../controllers/gradeController';
+import { addGrade, getGrades, getJournal } from '../controllers/gradeController';
 
 const router = Router();
 router.use(authenticate);
 
+router.get('/journal/:teacherSubjectId', getJournal);
 router.get('/', getGrades);
 router.post('/', [
   body('student_id').isInt(),

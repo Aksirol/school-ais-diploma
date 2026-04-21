@@ -3,6 +3,38 @@ import { AuthRequest } from '../middlewares/authMiddleware';
 import { validationResult } from 'express-validator';
 import { Grade, TeacherSubject, Student, User } from '../models';
 
+export const getJournal = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { teacherSubjectId } = req.params;
+    const user = req.user!;
+
+    // 1. Перевірка доступу: чи має цей вчитель відношення до цього предмета/класу?
+    const assignment = await TeacherSubject.findByPk(teacherSubjectId);
+    if (!assignment || (user.role === 'teacher' && assignment.teacher_id !== user.id)) {
+      res.status(403).json({ message: 'Доступ до цього журналу заборонено.' });
+      return;
+    }
+
+    // 2. Отримуємо всіх учнів цього класу та їхні оцінки саме з цього предмета
+    const journalData = await Student.findAll({
+      where: { class_id: assignment.class_id },
+      include: [
+        { model: User, attributes: ['id', 'first_name', 'last_name'] },
+        { 
+          model: Grade, 
+          where: { teacher_subject_id: teacherSubjectId },
+          required: false // щоб учні без оцінок теж потрапили в список
+        }
+      ],
+      order: [[User, 'last_name', 'ASC']]
+    });
+
+    res.status(200).json(journalData);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка завантаження журналу', error: error.message });
+  }
+};
+
 export const addGrade = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const errors = validationResult(req);
