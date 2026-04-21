@@ -2,6 +2,8 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB, sequelize } from './config/database';
+import authRoutes from './routes/authRoutes';
+import adminRoutes from './routes/adminRoutes';
 
 // Імпортуємо головний файл моделей, щоб Sequelize знав про них і їхні зв'язки
 // ДО того, як відбудеться синхронізація
@@ -16,6 +18,8 @@ const PORT = process.env.PORT || 5000;
 app.use(cors()); // Дозволяє фронтенду робити запити до бекенду
 app.use(express.json()); // Дозволяє серверу розуміти JSON у тілі запиту
 app.use(express.urlencoded({ extended: true }));
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 // --- Тестовий роут ---
 app.get('/api/health', (req: Request, res: Response) => {
