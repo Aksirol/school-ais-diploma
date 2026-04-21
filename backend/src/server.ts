@@ -1,9 +1,17 @@
+import http from 'http';
+import { initSocket } from './socket';
 import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB, sequelize } from './config/database';
 import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
+import academicRoutes from './routes/academicRoutes';
+import assignmentRoutes from './routes/assignmentRoutes';
+import materialRoutes from './routes/materialRoutes';
+import gradeRoutes from './routes/gradeRoutes';
+import path from 'path'; 
+import messageRoutes from './routes/messageRoutes';
 
 // Імпортуємо головний файл моделей, щоб Sequelize знав про них і їхні зв'язки
 // ДО того, як відбудеться синхронізація
@@ -20,6 +28,13 @@ app.use(express.json()); // Дозволяє серверу розуміти JSO
 app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/academic', academicRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+
+app.use('/api/materials', materialRoutes);
+app.use('/api/grades', gradeRoutes);
 
 // --- Тестовий роут ---
 app.get('/api/health', (req: Request, res: Response) => {
@@ -32,19 +47,17 @@ app.get('/api/health', (req: Request, res: Response) => {
 // --- Ініціалізація сервера та бази даних ---
 const startServer = async () => {
   try {
-    // 1. Підключаємось до PostgreSQL
     await connectDB();
-
-    // 2. Синхронізуємо моделі
-    // alter: true вказує Sequelize порівняти поточні моделі з таблицями в БД 
-    // і безпечно внести зміни (додати нові колонки/таблиці), не видаляючи дані.
-    // Це ідеально для розробки. Для продакшену зазвичай використовують міграції.
     await sequelize.sync({ alter: true });
     console.log('Таблиці бази даних успішно синхронізовано.');
 
-    // 3. Запускаємо сервер
-    app.listen(PORT, () => {
-      console.log(`🚀 Сервер запущено на http://localhost:${PORT}`);
+    // СТВОРЮЄМО HTTP СЕРВЕР ТА ПІДКЛЮЧАЄМО СОКЕТИ:
+    const httpServer = http.createServer(app);
+    initSocket(httpServer);
+
+    // ВАЖЛИВО: Запускаємо httpServer, а не app
+    httpServer.listen(PORT, () => {
+      console.log(`🚀 Сервер та WebSockets запущено на http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error('❌ Критична помилка при запуску сервера:', error);
