@@ -1,20 +1,20 @@
 import { Router } from 'express';
 import { authenticate } from '../middlewares/authMiddleware';
 import { isAdmin } from '../middlewares/adminMiddleware';
-import { getPendingUsers, approveUser, rejectUser } from '../controllers/adminController';
+import { getPendingUsers, approveUser, getAllActiveUsers, updateUserRole, deleteUser } from '../controllers/adminController';
 
 const router = Router();
 
-// Застосовуємо обидва мідлвари до всіх роутів у цьому файлі
+// Захищаємо всі роути адміністратора
 router.use(authenticate, isAdmin);
 
-// GET /api/admin/users/pending
+// Запити на реєстрацію
 router.get('/users/pending', getPendingUsers);
-
-// PUT /api/admin/users/:id/approve
 router.put('/users/:id/approve', approveUser);
 
-// DELETE /api/admin/users/:id/reject
-router.delete('/users/:id/reject', rejectUser);
+// Активні користувачі
+router.get('/users/active', getAllActiveUsers);
+router.put('/users/:id/role', updateUserRole);
+router.delete('/users/:id', deleteUser);
 
 export default router;

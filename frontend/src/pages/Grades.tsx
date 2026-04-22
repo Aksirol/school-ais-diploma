@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import { Plus, User as UserIcon, Edit2, Trash2, Check, X } from 'lucide-react';
+import { Plus, User as UserIcon, Search, Edit2, Trash2, Check, X } from 'lucide-react';
 
 interface GradeRecord {
   id: number;
@@ -34,6 +34,7 @@ const Grades = () => {
   const [newGrade, setNewGrade] = useState({ value: 10, date: new Date().toISOString().split('T')[0], comment: '' });
   const [studentGrades, setStudentGrades] = useState<{subject: string, grades: GradeRecord[]}[]>([]);
   const [editingGrade, setEditingGrade] = useState<{id: number, value: number} | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (user?.role === 'teacher') {
@@ -73,6 +74,23 @@ const Grades = () => {
       console.error(error);
     }
   };
+
+  // Оптимізований пошук для вчителя (по учнях)
+  const filteredJournal = useMemo(() => {
+    if (!searchQuery) return journal;
+    const q = searchQuery.toLowerCase();
+    return journal.filter(entry => 
+      entry.User.first_name.toLowerCase().includes(q) ||
+      entry.User.last_name.toLowerCase().includes(q)
+    );
+  }, [journal, searchQuery]);
+
+  // Оптимізований пошук для учня (по предметах)
+  const filteredStudentGrades = useMemo(() => {
+    if (!searchQuery) return studentGrades;
+    const q = searchQuery.toLowerCase();
+    return studentGrades.filter(sg => sg.subject.toLowerCase().includes(q));
+  }, [studentGrades, searchQuery]);
 
   const handleAddGrade = async () => {
     try {
@@ -134,91 +152,7 @@ const handleUpdateGrade = async () => {
         </div>
       )}
 
-      {/* ТАБЛИЦЯ ЖУРНАЛУ */}
-      {selectedAssignment && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-200">
-                  <th className="p-4 font-medium w-64">Прізвище та ім'я учня</th>
-                  <th className="p-4 font-medium">Останні оцінки</th>
-                  <th className="p-4 font-medium text-center w-24">Сер. бал</th>
-                  <th className="p-4 font-medium text-right w-20">Дії</th>
-                </tr>
-              </thead>
-              <tbody>
-                {journal.map((entry) => (
-                  <tr key={entry.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                    <td className="p-4 flex items-center gap-3">
-                      <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
-                        <UserIcon size={16} />
-                      </div>
-                      <span className="font-medium text-slate-700">{entry.User.last_name} {entry.User.first_name}</span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex flex-wrap gap-2">
-                        {entry.Grades.map(g => (
-                          <div key={g.id} className="group relative">
-                            <div key={g.id} className="group relative flex items-center gap-1">
-                              {editingGrade?.id === g.id ? (
-                                <div className="flex items-center bg-white border border-primary-300 rounded shadow-sm">
-                                  <input 
-                                    type="number" 
-                                    className="w-10 px-1 text-center outline-none" 
-                                    value={editingGrade.value}
-                                    onChange={(e) => setEditingGrade({...editingGrade, value: Number(e.target.value)})}
-                                  />
-                                  <button onClick={handleUpdateGrade} className="p-1 text-status-success"><Check size={14}/></button>
-                                  <button onClick={() => setEditingGrade(null)} className="p-1 text-slate-400"><X size={14}/></button>
-                                </div>
-                              ) : (
-                                <>
-                                  <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold border ${g.value >= 10 ? 'bg-accent-50 text-accent-400' : 'bg-primary-50'}`}>
-                                    {g.value}
-                                  </span>
-                                  {/* Кнопки керування при наведенні */}
-                                  <div className="absolute -top-6 left-0 hidden group-hover:flex bg-slate-800 text-white rounded p-1 gap-1 shadow-lg z-20">
-                                    <button onClick={() => setEditingGrade({id: g.id, value: g.value})} className="hover:text-primary-400"><Edit2 size={12}/></button>
-                                    <button onClick={() => handleDeleteGrade(g.id)} className="hover:text-status-danger"><Trash2 size={12}/></button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                            <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold border ${g.value >= 10 ? 'bg-accent-50 text-accent-400 border-accent-400' : 'bg-primary-50 text-primary-400 border-primary-200'}`}>
-                              {g.value}
-                            </span>
-                            {/* Тултіп з датою */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-10">
-                              {g.grade_date}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="p-4 text-center">
-                      <span className={`font-bold ${Number(calculateAverage(entry.Grades)) >= 10 ? 'text-accent-400' : 'text-slate-600'}`}>
-                        {calculateAverage(entry.Grades)}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <button 
-                        onClick={() => {
-                          setActiveStudent({id: entry.id, name: `${entry.User.last_name} ${entry.User.first_name}`});
-                          setIsModalOpen(true);
-                        }}
-                        className="p-2 text-primary-400 hover:bg-primary-50 rounded-lg transition-colors"
-                      >
-                        <Plus size={20} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      vs
 
       {/* ТАБЛИЦЯ ОЦІНОК ДЛЯ УЧНЯ */}
       {user?.role === 'student' && studentGrades.length > 0 && (

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import { useMemo } from 'react';
 
 // --- ІНТЕРФЕЙСИ ---
 interface Material {
@@ -143,12 +144,22 @@ const Materials = () => {
     return `http://localhost:5000${url}`; // Додаємо хост бекенду для статичних файлів
   };
 
-  // Фільтрація на клієнті
-  const filteredMaterials = materials.filter(m => {
-    const matchesSearch = m.title.toLowerCase().includes(search.toLowerCase());
-    const matchesType = typeFilter ? m.type === typeFilter : true;
-    return matchesSearch && matchesType;
-  });
+  // Фільтрація та сортування на клієнті (оптимізовано)
+  const filteredMaterials = useMemo(() => {
+    let result = [...materials];
+
+    // Пошук та фільтр
+    result = result.filter(m => {
+      const matchesSearch = m.title.toLowerCase().includes(search.toLowerCase());
+      const matchesType = typeFilter ? m.type === typeFilter : true;
+      return matchesSearch && matchesType;
+    });
+
+    // Сортування (найновіші зверху)
+    result.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime());
+
+    return result;
+  }, [materials, search, typeFilter]);
 
   return (
     <div className="space-y-6">

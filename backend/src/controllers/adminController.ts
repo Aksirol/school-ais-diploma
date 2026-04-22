@@ -2,44 +2,22 @@ import { Request, Response } from 'express';
 import { User, Student, Class } from '../models';
 import { AuthRequest } from '../middlewares/authMiddleware';
 
-// Отримати всіх користувачів, які очікують підтвердження
-export const getPendingUsers = async (req: Request, res: Response): Promise<void> => {
+
+export const getPendingUsers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const users = await User.findAll({
-      where: { is_approved: false },
-      attributes: ['id', 'first_name', 'last_name', 'email', 'role', 'created_at'],
-      include: [
-        {
-          model: Student, // Якщо це учень, підтягуємо його заявку на клас
-          include: [{ model: Class, attributes: ['id', 'name'] }]
-        }
-      ]
-    });
-    
-    res.status(200).json(users);
-  } catch (error: any) {
-    res.status(500).json({ message: 'Помилка отримання списку користувачів', error: error.message });
-  }
+    const users = await User.findAll({ where: { is_approved: false }, attributes: { exclude: ['password'] } });
+    res.json(users);
+  } catch (error) { res.status(500).json({ message: 'Помилка завантаження користувачів' }); }
 };
 
-// Підтвердити реєстрацію
-export const approveUser = async (req: Request, res: Response): Promise<void> => {
+export const approveUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const user = await User.findByPk(id);
-
-    if (!user) {
-      res.status(404).json({ message: 'Користувача не знайдено' });
-      return;
-    }
-
-    user.is_approved = true;
-    await user.save();
-
-    res.status(200).json({ message: 'Акаунт успішно підтверджено' });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Помилка підтвердження', error: error.message });
-  }
+    if (!user) { res.status(404).json({ message: 'Користувача не знайдено' }); return; }
+    await user.update({ is_approved: true });
+    res.json({ message: 'Користувача підтверджено' });
+  } catch (error) { res.status(500).json({ message: 'Помилка підтвердження' }); }
 };
 
 // Відхилити (видалити) реєстрацію
@@ -63,12 +41,40 @@ export const rejectUser = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-export const deleteUser = async (req: AuthRequest, res: Response) => {
+export const getAllActiveUsers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const users = await User.findAll({ 
+      where: { is_approved: true }, 
+      attributes: { exclude: ['password'] },
+      order: [['role', 'ASC'], ['last_name', 'ASC']]
+    });
+    res.json(users);
+  } catch (error) { res.status(500).json({ message: 'Помилка завантаження' }); }
+};
+
+export const updateUserRole = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    const user = await User.findByPk(id);
+    
+    if (!user) { res.status(404).json({ message: 'Користувача не знайдено' }); return; }
+    if (user.id === req.user!.id) { res.status(400).json({ message: 'Ви не можете змінити власну роль' }); return; }
+
+    await user.update({ role });
+    res.json({ message: 'Роль оновлено', user });
+  } catch (error) { res.status(500).json({ message: 'Помилка оновлення ролі' }); }
+};
+
+export const deleteUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const user = await User.findByPk(id);
-    if (!user) return res.status(404).json({ message: 'Користувача не знайдено' });
+    
+    if (!user) { res.status(404).json({ message: 'Користувача не знайдено' }); return; }
+    if (user.id === req.user!.id) { res.status(400).json({ message: 'Ви не можете видалити самі себе' }); return; }
+
     await user.destroy();
-    res.json({ message: 'Користувача видалено з системи' });
-  } catch (error: any) { res.status(500).json({ message: 'Помилка видалення' }); }
+    res.json({ message: 'Користувача видалено' });
+  } catch (error) { res.status(500).json({ message: 'Помилка видалення' }); }
 };
