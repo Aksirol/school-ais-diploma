@@ -8,6 +8,7 @@ export class Material extends Model {
   public type!: 'pdf' | 'ppt' | 'doc' | 'video' | 'link';
   public file_url!: string;
   public uploaded_at!: Date;
+  public url!: string;
 }
 
 Material.init(

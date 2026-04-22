@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
-import { Attendance, TeacherSubject } from '../models';
+import { Attendance, Student, TeacherSubject } from '../models';
 
 export const saveAttendance = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -31,5 +31,21 @@ export const saveAttendance = async (req: AuthRequest, res: Response): Promise<v
     res.status(200).json({ message: 'Журнал відвідуваності збережено' });
   } catch (error: any) {
     res.status(500).json({ message: 'Помилка збереження відвідуваності', error: error.message });
+  }
+};
+
+export const getAttendance = async (req: AuthRequest, res: Response) => {
+  try {
+    const { class_id, date } = req.query;
+    const attendance = await Attendance.findAll({
+      where: { 
+        date: date as string,
+        // фільтруємо через TeacherSubject, щоб знайти потрібний клас
+      },
+      include: [{ model: Student }]
+    });
+    res.json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: 'Помилка отримання відвідуваності' });
   }
 };

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middlewares/authMiddleware';
 import { isAdmin } from '../middlewares/adminMiddleware';
-import { createClass, getClasses, createSubject, getSubjects } from '../controllers/academicController';
+import { createClass, getClasses, createSubject, getSubjects, deleteClass, updateClass } from '../controllers/academicController';
 
 const router = Router();
 
@@ -19,5 +19,8 @@ router.get('/subjects', getSubjects);
 
 // Створення предмета (лише Адмін)
 router.post('/subjects', isAdmin, createSubject);
+
+router.put('/classes/:id', isAdmin, updateClass);
+router.delete('/classes/:id', isAdmin, deleteClass);
 
 export default router;

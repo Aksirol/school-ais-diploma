@@ -112,3 +112,38 @@ export const getGrades = async (req: AuthRequest, res: Response): Promise<void> 
     res.status(500).json({ message: 'Помилка отримання оцінок' });
   }
 };
+
+// В gradeController.ts додаємо:
+export const updateGrade = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { value, comment } = req.body;
+    const grade = await Grade.findByPk(id);
+
+    if (!grade) return res.status(404).json({ message: 'Оцінку не знайдено' });
+    
+    // Перевірка: редагувати може лише той вчитель, який поставив (або адмін)
+    const assignment = await TeacherSubject.findByPk(grade.teacher_subject_id);
+    if (assignment?.teacher_id !== req.user!.id && req.user!.role !== 'admin') {
+      return res.status(403).json({ message: 'Немає прав для редагування цієї оцінки' });
+    }
+
+    await grade.update({ value, comment });
+    res.json(grade);
+  } catch (error) {
+    res.status(500).json({ message: 'Помилка оновлення оцінки' });
+  }
+};
+
+export const deleteGrade = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const grade = await Grade.findByPk(id);
+    if (!grade) return res.status(404).json({ message: 'Оцінку не знайдено' });
+    
+    await grade.destroy();
+    res.json({ message: 'Оцінку видалено' });
+  } catch (error) {
+    res.status(500).json({ message: 'Помилка видалення оцінки' });
+  }
+};

@@ -55,3 +55,52 @@ export const getHomeworks = async (req: AuthRequest, res: Response): Promise<voi
     res.status(500).json({ message: 'Помилка отримання ДЗ', error: error.message });
   }
 };
+
+// Оновлення ДЗ
+export const updateHomework = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { title, description, due_date } = req.body;
+    
+    const homework = await Homework.findByPk(id);
+    if (!homework) {
+      res.status(404).json({ message: 'Завдання не знайдено' });
+      return;
+    }
+
+    // Перевірка прав (вчитель може редагувати тільки свої)
+    const assignment = await TeacherSubject.findByPk(homework.teacher_subject_id);
+    if (assignment?.teacher_id !== req.user!.id && req.user!.role !== 'admin') {
+      res.status(403).json({ message: 'Доступ заборонено' });
+      return;
+    }
+
+    await homework.update({ title, description, due_date });
+    res.json(homework);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка оновлення ДЗ', error: error.message });
+  }
+};
+
+// Видалення ДЗ
+export const deleteHomework = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const homework = await Homework.findByPk(id);
+    if (!homework) {
+      res.status(404).json({ message: 'Завдання не знайдено' });
+      return;
+    }
+
+    const assignment = await TeacherSubject.findByPk(homework.teacher_subject_id);
+    if (assignment?.teacher_id !== req.user!.id && req.user!.role !== 'admin') {
+      res.status(403).json({ message: 'Доступ заборонено' });
+      return;
+    }
+
+    await homework.destroy();
+    res.json({ message: 'Завдання видалено' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка видалення ДЗ', error: error.message });
+  }
+};

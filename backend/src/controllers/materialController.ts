@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { validationResult } from 'express-validator';
 import { Material, TeacherSubject, Student } from '../models';
+import fs from 'fs';
+import path from 'path';
 
 export const uploadMaterial = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -46,6 +48,28 @@ export const uploadMaterial = async (req: AuthRequest, res: Response): Promise<v
     res.status(201).json({ message: 'Матеріал успішно додано', material });
   } catch (error: any) {
     res.status(500).json({ message: 'Помилка завантаження матеріалу', error: error.message });
+  }
+};
+
+export const deleteMaterial = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const material = await Material.findByPk(id);
+
+    if (!material) return res.status(404).json({ message: 'Матеріал не знайдено' });
+
+    // Якщо це файл (не посилання), видаляємо його з папки uploads
+    if (material.type !== 'link' && material.url) {
+      const filePath = path.join(__dirname, '../../', material.url);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    await material.destroy();
+    res.json({ message: 'Матеріал видалено' });
+  } catch (error) {
+    res.status(500).json({ message: 'Помилка видалення матеріалу' });
   }
 };
 

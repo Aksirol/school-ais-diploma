@@ -41,3 +41,22 @@ export const getScheduleByClass = async (req: AuthRequest, res: Response): Promi
     res.status(500).json({ message: 'Помилка отримання розкладу', error: error.message });
   }
 };
+
+export const upsertSchedule = async (req: AuthRequest, res: Response) => {
+  try {
+    const { class_id, day_of_week, lessons } = req.body; 
+    // lessons: [{lesson_number, teacher_subject_id, room}]
+    
+    // Видаляємо старий розклад на цей день для цього класу
+    await Schedule.destroy({ where: { class_id, day_of_week } });
+    
+    // Створюємо новий
+    const newSchedule = await Schedule.bulkCreate(
+      lessons.map((l: any) => ({ ...l, class_id, day_of_week }))
+    );
+    
+    res.json(newSchedule);
+  } catch (error) {
+    res.status(500).json({ message: 'Помилка оновлення розкладу' });
+  }
+};

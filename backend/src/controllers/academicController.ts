@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Class, Subject } from '../models';
+import { AuthRequest } from '../middlewares/authMiddleware';
 
 // --- КЛАСИ ---
 
@@ -31,6 +32,30 @@ export const getClasses = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
+// --- ДЛЯ КЛАСІВ ---
+export const updateClass = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { name, year } = req.body;
+    const cls = await Class.findByPk(id);
+    if (!cls) { res.status(404).json({ message: 'Клас не знайдено' }); return; }
+    
+    await cls.update({ name, year });
+    res.json(cls);
+  } catch (error: any) { res.status(500).json({ message: 'Помилка', error: error.message }); }
+};
+
+export const deleteClass = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const cls = await Class.findByPk(id);
+    if (!cls) { res.status(404).json({ message: 'Клас не знайдено' }); return; }
+    
+    await cls.destroy();
+    res.json({ message: 'Клас видалено' });
+  } catch (error: any) { res.status(500).json({ message: 'Помилка (можливо, є пов\'язані дані)', error: error.message }); }
+};
+
 // --- ПРЕДМЕТИ ---
 
 export const createSubject = async (req: Request, res: Response): Promise<void> => {
@@ -57,4 +82,27 @@ export const getSubjects = async (req: Request, res: Response): Promise<void> =>
   } catch (error: any) {
     res.status(500).json({ message: 'Помилка отримання списку предметів' });
   }
+};
+
+export const updateSubject = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { name, year } = req.body;
+    const subject = await Subject.findByPk(id);
+    if (!subject) { res.status(404).json({ message: 'Предмет не знайдено' }); return; }
+    
+    await subject.update({ name, year });
+    res.json(subject);
+  } catch (error: any) { res.status(500).json({ message: 'Помилка', error: error.message }); }
+};
+
+export const deleteSubject = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const subject = await Subject.findByPk(id);
+    if (!subject) { res.status(404).json({ message: 'Предмет не знайдено' }); return; }
+    
+    await subject.destroy();
+    res.json({ message: 'Предмет видалено' });
+  } catch (error: any) { res.status(500).json({ message: 'Помилка (можливо, є пов\'язані дані)', error: error.message }); }
 };

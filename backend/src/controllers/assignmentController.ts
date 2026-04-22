@@ -64,3 +64,18 @@ export const getAssignments = async (req: AuthRequest, res: Response): Promise<v
     res.status(500).json({ message: 'Помилка отримання списку призначень', error: error.message });
   }
 };
+
+export const deleteAssignment = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const assignment = await TeacherSubject.findByPk(id);
+    if (!assignment) {
+      res.status(404).json({ message: 'Призначення не знайдено' });
+      return;
+    }
+    await assignment.destroy();
+    res.json({ message: 'Призначення скасовано' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка видалення', error: error.message });
+  }
+};

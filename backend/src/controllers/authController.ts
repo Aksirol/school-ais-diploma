@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { User, Student } from '../models';
 import { sequelize } from '../config/database';
 import { validationResult } from 'express-validator';
+import { AuthRequest } from '../middlewares/authMiddleware';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   // Використовуємо транзакцію для безпечного запису в кілька таблиць
@@ -109,5 +110,54 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Помилка авторизації' });
+  }
+};
+
+export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { first_name, last_name, current_password, new_password } = req.body;
+
+    const user = await User.findByPk(userId);
+    if (!user) {
+      res.status(404).json({ message: 'Користувача не знайдено' });
+      return;
+    }
+
+    // Оновлення ПІБ
+    if (first_name) user.first_name = first_name;
+    if (last_name) user.last_name = last_name;
+
+    // Оновлення пароля
+    if (new_password) {
+      if (!current_password) {
+        res.status(400).json({ message: 'Введіть поточний пароль для підтвердження' });
+        return;
+      }
+      
+      // ВИПРАВЛЕНО: Використовуємо getDataValue для читання
+      const isMatch = await bcrypt.compare(current_password, user.getDataValue('password'));
+      if (!isMatch) {
+        res.status(400).json({ message: 'Поточний пароль невірний' });
+        return;
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      // ВИПРАВЛЕНО: Використовуємо setDataValue для запису
+      user.setDataValue('password', await bcrypt.hash(new_password, salt));
+    }
+
+    await user.save();
+    
+    // Не повертаємо пароль на клієнт
+    res.json({ 
+      id: user.id, 
+      first_name: user.first_name, 
+      last_name: user.last_name, 
+      email: user.email, 
+      role: user.role 
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка оновлення профілю', error: error.message });
   }
 };
