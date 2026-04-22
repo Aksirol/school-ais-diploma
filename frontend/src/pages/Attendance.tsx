@@ -24,22 +24,23 @@ const Attendance = () => {
   useEffect(() => {
     if (selectedAssignment) {
       setIsLoading(true);
-      setTimeout(() => {
-        const demoStudents = [
-          { id: 1, first_name: 'Іван', last_name: 'Шевченко' },
-          { id: 2, first_name: 'Олена', last_name: 'Коваленко' },
-          { id: 3, first_name: 'Андрій', last_name: 'Бойко' },
-          { id: 4, first_name: 'Марія', last_name: 'Петренко' },
-        ];
-        setStudents(demoStudents);
-        
-        // За замовчуванням всі присутні
-        const initialAttendance: any = {};
-        demoStudents.forEach(s => initialAttendance[s.id] = 'present');
-        setAttendance(initialAttendance);
-        
-        setIsLoading(false);
-      }, 400);
+      // Використовуємо існуючий роут журналу, щоб отримати учнів класу
+      api.get(`/grades/journal/${selectedAssignment}`)
+        .then(res => {
+          // res.data містить JournalEntry, витягуємо учнів
+          const realStudents = res.data.map((entry: any) => ({
+            id: entry.id, // Це id запису Student
+            first_name: entry.User.first_name,
+            last_name: entry.User.last_name
+          }));
+          setStudents(realStudents);
+          
+          const initialAttendance: any = {};
+          realStudents.forEach((s: any) => initialAttendance[s.id] = 'present');
+          setAttendance(initialAttendance);
+        })
+        .catch(console.error)
+        .finally(() => setIsLoading(false));
     } else {
       setStudents([]);
     }
@@ -58,7 +59,7 @@ const Attendance = () => {
       });
       alert('Журнал успішно збережено!');
     } catch (error) {
-      alert('Помилка збереження');
+      alert('Помилка збереження відвідуваності');
     }
   };
 

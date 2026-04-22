@@ -18,7 +18,6 @@ router.use(authenticate);
 // Ліва панель (список чатів)
 // 1. Статичні роути (БЕЗ параметрів)
 router.get('/dialogues', getDialogues);
-router.get('/users', getUsersForChat);
 router.put('/msg/:id', editMessage);
 router.delete('/msg/:id', deleteMessage);
 
@@ -33,6 +32,7 @@ router.post('/', [
 ], sendMessage);
 
 // 2. Динамічні роути (З параметрами - повинні бути в кінці!)
+router.get('/users', getUsersForChat);
 router.get('/:partnerId', getChatHistory);
 router.put('/:partnerId/read', markAsRead);
 

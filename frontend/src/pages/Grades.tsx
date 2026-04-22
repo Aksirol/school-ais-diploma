@@ -32,6 +32,7 @@ const Grades = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeStudent, setActiveStudent] = useState<{id: number, name: string} | null>(null);
   const [newGrade, setNewGrade] = useState({ value: 10, date: new Date().toISOString().split('T')[0], comment: '' });
+  const [studentGrades, setStudentGrades] = useState<{subject: string, grades: GradeRecord[]}[]>([]);
 
   useEffect(() => {
     if (user?.role === 'teacher') {
@@ -54,8 +55,22 @@ const Grades = () => {
   };
 
   const fetchStudentGrades = async () => {
-    await api.get('/grades');
-    // ... групування по предметах ...
+    try {
+      const res = await api.get('/grades');
+      
+      // Групуємо оцінки по предметах
+      const grouped: Record<string, GradeRecord[]> = {};
+      res.data.forEach((grade: any) => {
+        const subjName = grade.TeacherSubject?.Subject?.name || 'Предмет';
+        if (!grouped[subjName]) grouped[subjName] = [];
+        grouped[subjName].push(grade);
+      });
+      
+      // Перетворюємо об'єкт в масив для зручного рендера
+      setStudentGrades(Object.entries(grouped).map(([subject, grades]) => ({ subject, grades })));
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleAddGrade = async () => {
@@ -155,6 +170,52 @@ const Grades = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ТАБЛИЦЯ ОЦІНОК ДЛЯ УЧНЯ */}
+      {user?.role === 'student' && studentGrades.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-200">
+                <th className="p-4 font-medium w-48">Предмет</th>
+                <th className="p-4 font-medium">Ваші оцінки</th>
+                <th className="p-4 font-medium text-center w-24">Сер. бал</th>
+              </tr>
+            </thead>
+            <tbody>
+              {studentGrades.map((sg, idx) => (
+                <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50">
+                  <td className="p-4 font-bold text-slate-700">{sg.subject}</td>
+                  <td className="p-4">
+                    <div className="flex flex-wrap gap-2">
+                      {sg.grades.map(g => (
+                        <div key={g.id} className="group relative">
+                          <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold border ${g.value >= 10 ? 'bg-accent-50 text-accent-400 border-accent-400' : 'bg-primary-50 text-primary-400 border-primary-200'}`}>
+                            {g.value}
+                          </span>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-10">
+                            {new Date(g.grade_date).toLocaleDateString('uk-UA')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="p-4 text-center font-bold text-slate-700">
+                    {calculateAverage(sg.grades)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      
+      {/* Повідомлення, якщо в учня ще немає оцінок */}
+      {user?.role === 'student' && studentGrades.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300 text-slate-500">
+          У вас ще немає виставлених оцінок.
         </div>
       )}
 

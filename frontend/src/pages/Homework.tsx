@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { BookOpen, Calendar, Plus, X} from 'lucide-react';
 import api from '../api/axios';
@@ -29,35 +29,32 @@ const Homework = () => {
   const fetchHomeworks = async () => {
     setIsLoading(true);
     try {
-      // Якщо бекенд готовий, тут буде api.get('/homework')
-      // Для демонстрації фронтенду поки ставимо заглушку:
-      setTimeout(() => {
-        setHomeworks([
-          { id: 1, title: 'Прочитати розділ 4', description: 'Відповісти на питання після тексту.', due_date: '2026-05-15', teacher_subject_id: 1, TeacherSubject: { Subject: { name: 'Укр. література' }, Class: { name: '5-А' } } },
-          { id: 2, title: 'Рівняння з дробами', description: 'Виконати вправи 112-120 у робочому зошиті.', due_date: '2026-05-16', teacher_subject_id: 2, TeacherSubject: { Subject: { name: 'Математика' }, Class: { name: '5-А' } } }
-        ]);
-        setIsLoading(false);
-      }, 500);
+      // Отримуємо реальні домашні завдання
+      const hwRes = await api.get('/homework');
+      setHomeworks(hwRes.data);
       
+      // Якщо вчитель, отримуємо його призначення для селекту у формі
       if (user?.role === 'teacher') {
         const res = await api.get('/assignments');
         setAssignments(res.data);
       }
     } catch (error) {
-      console.error(error);
+      console.error('Помилка завантаження ДЗ:', error);
+    } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchHomeworks();
-  }, [user]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Тут буде api.post('/homework', formData)
-    alert('Тут буде відправка на бекенд. Дані: ' + JSON.stringify(formData));
-    setIsModalOpen(false);
+    try {
+      await api.post('/homework', formData);
+      setIsModalOpen(false);
+      setFormData({ title: '', description: '', due_date: '', teacher_subject_id: '' });
+      fetchHomeworks(); // Оновлюємо список після створення
+    } catch (error) {
+      alert('Помилка створення завдання. Перевірте дані.');
+    }
   };
 
   const isOverdue = (dateString: string) => new Date(dateString) < new Date();

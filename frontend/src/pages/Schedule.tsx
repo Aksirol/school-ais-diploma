@@ -18,24 +18,27 @@ const Schedule = () => {
   const { user } = useAuth();
   const [schedule, setSchedule] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedClass, setSelectedClass] = useState('5-А'); // Для адміна/вчителя
+  const [selectedClass, setSelectedClass] = useState('');
+  const [availableClasses, setAvailableClasses] = useState<any[]>([]);
 
+  // 1. Завантажуємо список класів
   useEffect(() => {
-    // Імітація завантаження розкладу
+    api.get('/academic/classes').then(res => {
+      setAvailableClasses(res.data);
+      if (res.data.length > 0 && !selectedClass) {
+        setSelectedClass(res.data[0].name);
+      }
+    }).catch(console.error);
+  }, []);
+
+  // 2. Завантажуємо розклад при зміні класу
+  useEffect(() => {
+    if (!selectedClass) return;
     setIsLoading(true);
-    setTimeout(() => {
-      // Тимчасові демо-дані
-      setSchedule([
-        { day: 'Понеділок', lessonNum: 1, subject: 'Математика', teacher: 'Коваленко О.І.', room: 'Каб. 301' },
-        { day: 'Понеділок', lessonNum: 2, subject: 'Укр. мова', teacher: 'Шевченко М.В.', room: 'Каб. 205' },
-        { day: 'Понеділок', lessonNum: 3, subject: 'Англ. мова', teacher: 'Петренко І.С.', room: 'Каб. 412' },
-        { day: 'Вівторок', lessonNum: 1, subject: 'Історія', teacher: 'Бойко В.М.', room: 'Каб. 210' },
-        { day: 'Вівторок', lessonNum: 2, subject: 'Математика', teacher: 'Коваленко О.І.', room: 'Каб. 301' },
-        { day: 'Вівторок', lessonNum: 3, subject: 'Інформатика', teacher: 'Сидоренко О.П.', room: 'Каб. 105' },
-        { day: 'Середа', lessonNum: 2, subject: 'Фізика', teacher: 'Григоренко Т.В.', room: 'Каб. 305' },
-      ]);
-      setIsLoading(false);
-    }, 500);
+    api.get(`/schedule/${selectedClass}`)
+      .then(res => setSchedule(res.data))
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
   }, [selectedClass]);
 
   const getLesson = (day: string, num: number) => {
@@ -61,9 +64,9 @@ const Schedule = () => {
             onChange={(e) => setSelectedClass(e.target.value)}
             className="p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-primary-400 bg-slate-50 font-medium text-slate-700"
           >
-            <option value="5-А">5-А клас</option>
-            <option value="5-Б">5-Б клас</option>
-            <option value="6-А">6-А клас</option>
+            {availableClasses.map(c => (
+              <option key={c.id} value={c.name}>{c.name} клас</option>
+            ))}
           </select>
         )}
       </div>
