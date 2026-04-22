@@ -65,17 +65,12 @@ export const getAssignments = async (req: AuthRequest, res: Response): Promise<v
   }
 };
 
-export const deleteAssignment = async (req: AuthRequest, res: Response): Promise<void> => {
+export const deleteAssignment = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const assignment = await TeacherSubject.findByPk(id);
-    if (!assignment) {
-      res.status(404).json({ message: 'Призначення не знайдено' });
-      return;
-    }
+    if (!assignment) return res.status(404).json({ message: 'Призначення не знайдено' });
     await assignment.destroy();
     res.json({ message: 'Призначення скасовано' });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Помилка видалення', error: error.message });
-  }
+  } catch (error: any) { res.status(500).json({ message: 'Помилка видалення' }); }
 };

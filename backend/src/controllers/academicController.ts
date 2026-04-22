@@ -84,25 +84,23 @@ export const getSubjects = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-export const updateSubject = async (req: AuthRequest, res: Response): Promise<void> => {
+export const updateSubject = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, year } = req.body;
+    const { name } = req.body;
     const subject = await Subject.findByPk(id);
-    if (!subject) { res.status(404).json({ message: 'Предмет не знайдено' }); return; }
-    
-    await subject.update({ name, year });
+    if (!subject) return res.status(404).json({ message: 'Предмет не знайдено' });
+    await subject.update({ name });
     res.json(subject);
-  } catch (error: any) { res.status(500).json({ message: 'Помилка', error: error.message }); }
+  } catch (error: any) { res.status(500).json({ message: 'Помилка оновлення' }); }
 };
 
-export const deleteSubject = async (req: AuthRequest, res: Response): Promise<void> => {
+export const deleteSubject = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const subject = await Subject.findByPk(id);
-    if (!subject) { res.status(404).json({ message: 'Предмет не знайдено' }); return; }
-    
+    if (!subject) return res.status(404).json({ message: 'Предмет не знайдено' });
     await subject.destroy();
     res.json({ message: 'Предмет видалено' });
-  } catch (error: any) { res.status(500).json({ message: 'Помилка (можливо, є пов\'язані дані)', error: error.message }); }
+  } catch (error: any) { res.status(500).json({ message: 'Помилка (можливо, є активні призначення)' }); }
 };

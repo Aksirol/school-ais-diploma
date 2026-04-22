@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { User, Student, Class } from '../models';
+import { AuthRequest } from '../middlewares/authMiddleware';
 
 // Отримати всіх користувачів, які очікують підтвердження
 export const getPendingUsers = async (req: Request, res: Response): Promise<void> => {
@@ -60,4 +61,14 @@ export const rejectUser = async (req: Request, res: Response): Promise<void> => 
   } catch (error: any) {
     res.status(500).json({ message: 'Помилка відхилення', error: error.message });
   }
+};
+
+export const deleteUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ message: 'Користувача не знайдено' });
+    await user.destroy();
+    res.json({ message: 'Користувача видалено з системи' });
+  } catch (error: any) { res.status(500).json({ message: 'Помилка видалення' }); }
 };
