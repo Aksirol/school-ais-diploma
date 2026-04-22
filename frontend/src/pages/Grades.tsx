@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import { Plus, User as UserIcon } from 'lucide-react';
+import { Plus, User as UserIcon, Edit2, Trash2, Check, X } from 'lucide-react';
 
 interface GradeRecord {
   id: number;
@@ -33,6 +33,7 @@ const Grades = () => {
   const [activeStudent, setActiveStudent] = useState<{id: number, name: string} | null>(null);
   const [newGrade, setNewGrade] = useState({ value: 10, date: new Date().toISOString().split('T')[0], comment: '' });
   const [studentGrades, setStudentGrades] = useState<{subject: string, grades: GradeRecord[]}[]>([]);
+  const [editingGrade, setEditingGrade] = useState<{id: number, value: number} | null>(null);
 
   useEffect(() => {
     if (user?.role === 'teacher') {
@@ -89,6 +90,27 @@ const Grades = () => {
     }
   };
 
+  const handleDeleteGrade = async (id: number) => {
+  if (!window.confirm('Видалити цю оцінку?')) return;
+  try {
+    await api.delete(`/grades/${id}`);
+    fetchJournal(selectedAssignment!); // Оновлюємо дані
+  } catch (error) {
+    alert('Помилка видалення');
+  }
+};
+
+const handleUpdateGrade = async () => {
+  if (!editingGrade) return;
+  try {
+    await api.put(`/grades/${editingGrade.id}`, { value: editingGrade.value });
+    setEditingGrade(null);
+    fetchJournal(selectedAssignment!);
+  } catch (error) {
+    alert('Помилка оновлення');
+  }
+};
+
   const calculateAverage = (grades: GradeRecord[]) => {
     if (!grades || grades.length === 0) return '-';
     const sum = grades.reduce((acc, curr) => acc + curr.value, 0);
@@ -138,6 +160,31 @@ const Grades = () => {
                       <div className="flex flex-wrap gap-2">
                         {entry.Grades.map(g => (
                           <div key={g.id} className="group relative">
+                            <div key={g.id} className="group relative flex items-center gap-1">
+                              {editingGrade?.id === g.id ? (
+                                <div className="flex items-center bg-white border border-primary-300 rounded shadow-sm">
+                                  <input 
+                                    type="number" 
+                                    className="w-10 px-1 text-center outline-none" 
+                                    value={editingGrade.value}
+                                    onChange={(e) => setEditingGrade({...editingGrade, value: Number(e.target.value)})}
+                                  />
+                                  <button onClick={handleUpdateGrade} className="p-1 text-status-success"><Check size={14}/></button>
+                                  <button onClick={() => setEditingGrade(null)} className="p-1 text-slate-400"><X size={14}/></button>
+                                </div>
+                              ) : (
+                                <>
+                                  <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold border ${g.value >= 10 ? 'bg-accent-50 text-accent-400' : 'bg-primary-50'}`}>
+                                    {g.value}
+                                  </span>
+                                  {/* Кнопки керування при наведенні */}
+                                  <div className="absolute -top-6 left-0 hidden group-hover:flex bg-slate-800 text-white rounded p-1 gap-1 shadow-lg z-20">
+                                    <button onClick={() => setEditingGrade({id: g.id, value: g.value})} className="hover:text-primary-400"><Edit2 size={12}/></button>
+                                    <button onClick={() => handleDeleteGrade(g.id)} className="hover:text-status-danger"><Trash2 size={12}/></button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                             <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold border ${g.value >= 10 ? 'bg-accent-50 text-accent-400 border-accent-400' : 'bg-primary-50 text-primary-400 border-primary-200'}`}>
                               {g.value}
                             </span>

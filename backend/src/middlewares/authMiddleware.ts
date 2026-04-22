@@ -24,6 +24,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     req.user = decoded;
     next(); // Токен валідний, пропускаємо далі
   } catch (error) {
-    res.status(403).json({ message: 'Токен недійсний або його термін дії закінчився.' });
+    // ЗАМІНІТЬ 403 НА 401 ТУТ:
+    res.status(401).json({ message: 'Токен недійсний або його термін дії закінчився.' });
   }
 };
