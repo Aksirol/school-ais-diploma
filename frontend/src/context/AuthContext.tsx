@@ -1,9 +1,10 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 
-interface User {
+export interface User {
   id: number;
   first_name: string;
   last_name: string;
+  email: string; // <-- Додано email
   role: 'admin' | 'teacher' | 'student';
 }
 
@@ -11,6 +12,7 @@ interface AuthContextType {
   user: User | null;
   login: (token: string, userData: User) => void;
   logout: () => void;
+  updateUser: (data: Partial<User>) => void; // <-- Додано updateUser
   isLoading: boolean;
 }
 
@@ -40,8 +42,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  // <-- Тепер функція всередині компонента і бачить user/setUser
+  const updateUser = (data: Partial<User>) => {
+    if (!user) return;
+    const updatedUser = { ...user, ...data } as User;
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
+  // <-- Видалено неіснуючий 'register'
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

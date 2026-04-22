@@ -14,24 +14,12 @@ import Messages from './pages/Messages';
 import Homework from './pages/Homework';
 import Schedule from './pages/Schedule';
 import Attendance from './pages/Attendance';
+import Profile from './pages/Profile';
 
 // --- Адмінські сторінки ---
 import UsersManagement from './pages/admin/UsersManagement';
 import AcademicManagement from './pages/admin/AcademicManagement';
 import AssignmentsManagement from './pages/admin/AssignmentsManagement';
-
-// Компонент-заглушка для нереалізованих модулів
-const Placeholder = ({ title }: { title: string }) => (
-  <div className="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center">
-    <div className="w-16 h-16 bg-primary-50 text-primary-400 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-      🛠️
-    </div>
-    <h2 className="text-2xl font-bold text-slate-800 mb-2">{title}</h2>
-    <p className="text-slate-500 max-w-md mx-auto">
-      Цей модуль наразі знаходиться на стадії розробки. Незабаром тут з'явиться новий функціонал.
-    </p>
-  </div>
-);
 
 function App() {
   return (
@@ -45,6 +33,7 @@ function App() {
           {/* ЗАХИЩЕНІ МАРШРУТИ (Для всіх авторизованих) */}
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
+              <Route path="/profile" element={<Profile />} />
               <Route path="/" element={<Dashboard />} />
               
               {/* Готові освітні модулі */}
