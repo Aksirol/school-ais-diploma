@@ -7,7 +7,7 @@ COPY . .
 # Змінюємо змінні середовища для продакшена
 ENV VITE_API_URL=/api
 ENV VITE_SOCKET_URL="" 
-RUN npm run build
+RUN npx vite build
 
 # Етап 2: Сервер Nginx
 FROM nginx:alpine
