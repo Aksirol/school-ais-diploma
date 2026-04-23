@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import { Plus, User as UserIcon, Search, Edit2, Trash2, Check, X } from 'lucide-react';
+import { Plus, Search, FileSpreadsheet, BookOpen } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 interface GradeRecord {
   id: number;
@@ -12,7 +14,7 @@ interface GradeRecord {
 
 interface JournalEntry {
   id: number;
-  User: { id: number; first_name: string; last_name: string };
+  User: { id: number; first_name: string; last_name: string; middle_name?: string };
   Grades: GradeRecord[];
 }
 
@@ -27,20 +29,20 @@ const Grades = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<number | null>(null);
   const [journal, setJournal] = useState<JournalEntry[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Для модального вікна додавання оцінки
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeStudent, setActiveStudent] = useState<{id: number, name: string} | null>(null);
   const [newGrade, setNewGrade] = useState({ value: 10, date: new Date().toISOString().split('T')[0], comment: '' });
+  
+  // Для відображення оцінок учню
   const [studentGrades, setStudentGrades] = useState<{subject: string, grades: GradeRecord[]}[]>([]);
-  const [editingGrade, setEditingGrade] = useState<{id: number, value: number} | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (user?.role === 'teacher') {
       api.get('/assignments').then(res => setAssignments(res.data));
     } else if (user?.role === 'student') {
-      // Для учня логіка простіша — він бачить свої оцінки (можна реалізувати окремим видом)
       fetchStudentGrades();
     }
   }, [user]);
@@ -52,45 +54,23 @@ const Grades = () => {
       setSelectedAssignment(id);
     } catch (error) {
       console.error(error);
-    } finally {
     }
   };
 
   const fetchStudentGrades = async () => {
     try {
       const res = await api.get('/grades');
-      
-      // Групуємо оцінки по предметах
       const grouped: Record<string, GradeRecord[]> = {};
       res.data.forEach((grade: any) => {
         const subjName = grade.TeacherSubject?.Subject?.name || 'Предмет';
         if (!grouped[subjName]) grouped[subjName] = [];
         grouped[subjName].push(grade);
       });
-      
-      // Перетворюємо об'єкт в масив для зручного рендера
       setStudentGrades(Object.entries(grouped).map(([subject, grades]) => ({ subject, grades })));
     } catch (error) {
       console.error(error);
     }
   };
-
-  // Оптимізований пошук для вчителя (по учнях)
-  const filteredJournal = useMemo(() => {
-    if (!searchQuery) return journal;
-    const q = searchQuery.toLowerCase();
-    return journal.filter(entry => 
-      entry.User.first_name.toLowerCase().includes(q) ||
-      entry.User.last_name.toLowerCase().includes(q)
-    );
-  }, [journal, searchQuery]);
-
-  // Оптимізований пошук для учня (по предметах)
-  const filteredStudentGrades = useMemo(() => {
-    if (!searchQuery) return studentGrades;
-    const q = searchQuery.toLowerCase();
-    return studentGrades.filter(sg => sg.subject.toLowerCase().includes(q));
-  }, [studentGrades, searchQuery]);
 
   const handleAddGrade = async () => {
     try {
@@ -102,32 +82,33 @@ const Grades = () => {
         comment: newGrade.comment
       });
       setIsModalOpen(false);
-      fetchJournal(selectedAssignment!); // Оновлюємо таблицю
+      fetchJournal(selectedAssignment!);
     } catch (error) {
       alert('Помилка виставлення оцінки');
     }
   };
 
-  const handleDeleteGrade = async (id: number) => {
-  if (!window.confirm('Видалити цю оцінку?')) return;
-  try {
-    await api.delete(`/grades/${id}`);
-    fetchJournal(selectedAssignment!); // Оновлюємо дані
-  } catch (error) {
-    alert('Помилка видалення');
-  }
-};
+  const exportToExcel = () => {
+    if (!journal.length || !selectedAssignment) return;
 
-const handleUpdateGrade = async () => {
-  if (!editingGrade) return;
-  try {
-    await api.put(`/grades/${editingGrade.id}`, { value: editingGrade.value });
-    setEditingGrade(null);
-    fetchJournal(selectedAssignment!);
-  } catch (error) {
-    alert('Помилка оновлення');
-  }
-};
+    const currentAssignment = assignments.find(a => a.id === selectedAssignment);
+    const fileName = `Journal_${currentAssignment?.Class.name}_${currentAssignment?.Subject.name}_${new Date().toLocaleDateString('uk-UA')}.xlsx`;
+
+    const dataToExport = journal.map((entry, index) => ({
+      '№': index + 1,
+      'Учень': `${entry.User.last_name} ${entry.User.first_name} ${entry.User.middle_name || ''}`.trim(),
+      'Оцінки': entry.Grades.map(g => g.value).join(', '),
+      'Середній бал': calculateAverage(entry.Grades)
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Журнал");
+
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+    saveAs(data, fileName);
+  };
 
   const calculateAverage = (grades: GradeRecord[]) => {
     if (!grades || grades.length === 0) return '-';
@@ -135,9 +116,39 @@ const handleUpdateGrade = async () => {
     return (sum / grades.length).toFixed(1);
   };
 
+  // Фільтрація
+  const filteredJournal = useMemo(() => {
+    if (!searchQuery) return journal;
+    const q = searchQuery.toLowerCase();
+    return journal.filter(e => e.User.first_name.toLowerCase().includes(q) || e.User.last_name.toLowerCase().includes(q));
+  }, [journal, searchQuery]);
+
+  const filteredStudentGrades = useMemo(() => {
+    if (!searchQuery) return studentGrades;
+    const q = searchQuery.toLowerCase();
+    return studentGrades.filter(sg => sg.subject.toLowerCase().includes(q));
+  }, [studentGrades, searchQuery]);
+
   return (
     <div className="space-y-6">
-      {/* СЕЛЕКТ ПРЕДМЕТА (Тільки для вчителя) */}
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Електронний журнал</h2>
+          <p className="text-slate-500">Облік успішності та формування звітності</p>
+        </div>
+        {selectedAssignment && user?.role === 'teacher' && (
+          <button 
+            onClick={exportToExcel}
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold transition-all shadow-lg shadow-emerald-100"
+          >
+            <FileSpreadsheet size={20} />
+            Експорт в Excel
+          </button>
+        )}
+      </div>
+
+      {/* ВИБІР ПРЕДМЕТА ДЛЯ ВЧИТЕЛЯ */}
       {user?.role === 'teacher' && (
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-3">
           {assignments.map(as => (
@@ -152,9 +163,83 @@ const handleUpdateGrade = async () => {
         </div>
       )}
 
-      vs
+      {/* ПОШУК */}
+      {(selectedAssignment || (user?.role === 'student' && studentGrades.length > 0)) && (
+        <div className="relative w-full sm:w-96">
+          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder={user?.role === 'teacher' ? "Пошук учня..." : "Пошук предмета..."}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-400 bg-white shadow-sm"
+          />
+        </div>
+      )}
 
-      {/* ТАБЛИЦЯ ОЦІНОК ДЛЯ УЧНЯ */}
+      {/* ТАБЛИЦЯ ЖУРНАЛУ (ВЧИТЕЛЬ) */}
+      {selectedAssignment && user?.role === 'teacher' && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-200">
+                <th className="p-4 font-medium w-64">Учень</th>
+                <th className="p-4 font-medium">Оцінки</th>
+                <th className="p-4 font-medium text-center w-24">Сер. бал</th>
+                <th className="p-4 font-medium text-right w-20">Дії</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredJournal.length === 0 ? (
+                <tr><td colSpan={4} className="p-8 text-center text-slate-500">За вашим запитом учнів не знайдено.</td></tr>
+              ) : (
+                filteredJournal.map((entry) => (
+                  <tr key={entry.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 uppercase text-xs font-bold">
+                        {entry.User.last_name[0]}{entry.User.first_name[0]}
+                      </div>
+                      <div>
+                         <p className="font-bold text-slate-700 leading-tight">{entry.User.last_name} {entry.User.first_name}</p>
+                         <p className="text-[10px] text-slate-400">{entry.User.middle_name || ''}</p>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex flex-wrap gap-2">
+                        {entry.Grades.map(g => (
+                          <div key={g.id} className="group relative">
+                            <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold border transition-transform hover:scale-110 cursor-default ${g.value >= 10 ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-primary-50 text-primary-600 border-primary-200'}`}>
+                              {g.value}
+                            </span>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-10">
+                              {new Date(g.grade_date).toLocaleDateString('uk-UA')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-4 text-center">
+                      <span className={`font-bold ${Number(calculateAverage(entry.Grades)) >= 10 ? 'text-emerald-500' : 'text-slate-600'}`}>
+                        {calculateAverage(entry.Grades)}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button 
+                        onClick={() => { setActiveStudent({id: entry.id, name: `${entry.User.last_name} ${entry.User.first_name}`}); setIsModalOpen(true); }} 
+                        className="p-2 text-primary-400 hover:bg-primary-50 rounded-lg transition-colors"
+                      >
+                        <Plus size={20} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ТАБЛИЦЯ ОЦІНОК (УЧЕНЬ) */}
       {user?.role === 'student' && studentGrades.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <table className="w-full text-left border-collapse">
@@ -166,41 +251,43 @@ const handleUpdateGrade = async () => {
               </tr>
             </thead>
             <tbody>
-              {studentGrades.map((sg, idx) => (
-                <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50">
-                  <td className="p-4 font-bold text-slate-700">{sg.subject}</td>
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-2">
-                      {sg.grades.map(g => (
-                        <div key={g.id} className="group relative">
-                          <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold border ${g.value >= 10 ? 'bg-accent-50 text-accent-400 border-accent-400' : 'bg-primary-50 text-primary-400 border-primary-200'}`}>
-                            {g.value}
-                          </span>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-10">
-                            {new Date(g.grade_date).toLocaleDateString('uk-UA')}
+              {filteredStudentGrades.length === 0 ? (
+                <tr><td colSpan={3} className="p-8 text-center text-slate-500">За вашим запитом предметів не знайдено.</td></tr>
+              ) : (
+                filteredStudentGrades.map((sg, idx) => (
+                  <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td className="p-4 font-bold text-slate-700">
+                      <div className="flex items-center gap-2">
+                        <BookOpen size={16} className="text-primary-400" /> {/* Added BookOpen if you want, or remove. I'll just use plain text to match previous */}
+                        {sg.subject}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex flex-wrap gap-2">
+                        {sg.grades.map(g => (
+                          <div key={g.id} className="group relative">
+                            <span className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold border ${g.value >= 10 ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-primary-50 text-primary-600 border-primary-200'}`}>
+                              {g.value}
+                            </span>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-10">
+                              {new Date(g.grade_date).toLocaleDateString('uk-UA')}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="p-4 text-center font-bold text-slate-700">
-                    {calculateAverage(sg.grades)}
-                  </td>
-                </tr>
-              ))}
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-4 text-center font-bold text-slate-700">
+                      {calculateAverage(sg.grades)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       )}
-      
-      {/* Повідомлення, якщо в учня ще немає оцінок */}
-      {user?.role === 'student' && studentGrades.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300 text-slate-500">
-          У вас ще немає виставлених оцінок.
-        </div>
-      )}
 
-      {/* МОДАЛЬНЕ ВІКНО ДОДАВАННЯ ОЦІНКИ */}
+      {/* МОДАЛЬНЕ ВІКНО ДОДАВАННЯ ОЦІНКИ (ВЧИТЕЛЬ) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border border-primary-100">
@@ -233,7 +320,7 @@ const handleUpdateGrade = async () => {
                 />
               </div>
               <div className="flex gap-3 pt-4">
-                <button onClick={() => setIsModalOpen(false)} className="flex-1 py-2 text-slate-500 font-medium">Скасувати</button>
+                <button onClick={() => setIsModalOpen(false)} className="flex-1 py-2 text-slate-500 font-medium hover:bg-slate-50 rounded-lg">Скасувати</button>
                 <button onClick={handleAddGrade} className="flex-1 py-2 bg-primary-400 text-white rounded-xl font-bold shadow-lg shadow-primary-200 hover:bg-primary-600 transition-all">Зберегти</button>
               </div>
             </div>
