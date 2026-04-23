@@ -1,15 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { 
-  FileText, Presentation, File, Video, Link as LinkIcon, 
-  Search, Plus, X, Download, Filter,
-  Trash2
+  FileText, Presentation, File as FileIcon, Video, Link as LinkIcon, 
+  Search, X, Download, Filter, ExternalLink, Trash2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import { useMemo } from 'react';
+import { saveAs } from 'file-saver';
 
 // --- ІНТЕРФЕЙСИ ---
 interface Material {
@@ -34,7 +33,6 @@ const uploadSchema = z.object({
   type: z.enum(['pdf', 'ppt', 'doc', 'video', 'link']),
   url: z.string().optional(),
 }).refine((data) => {
-  // Якщо тип 'link', поле URL є обов'язковим
   if (data.type === 'link' && (!data.url || data.url.trim() === '')) return false;
   return true;
 }, { message: 'Введіть коректне посилання', path: ['url'] });
@@ -44,12 +42,10 @@ type UploadForm = z.infer<typeof uploadSchema>;
 const Materials = () => {
   const { user } = useAuth();
   
-  // Стейт матеріалів та фільтрів
   const [materials, setMaterials] = useState<Material[]>([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   
-  // Стейт модального вікна та завантаження
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -61,33 +57,18 @@ const Materials = () => {
 
   const selectedType = watch('type');
 
-  const handleDeleteMaterial = async (id: number) => {
-    if (!window.confirm('Видалити цей навчальний матеріал?')) return;
-    try {
-      await api.delete(`/materials/${id}`);
-      fetchMaterials();
-    } catch (error) {
-      alert('Помилка видалення матеріалу');
-    }
-  };
-
-  // --- ЗАВАНТАЖЕННЯ ДАНИХ ---
   const fetchMaterials = async () => {
     try {
       const response = await api.get('/materials');
       setMaterials(response.data);
-    } catch (error) {
-      console.error('Помилка завантаження матеріалів', error);
-    }
+    } catch (error) { console.error('Помилка завантаження', error); }
   };
 
   const fetchAssignments = async () => {
     try {
       const response = await api.get('/assignments');
       setAssignments(response.data);
-    } catch (error) {
-      console.error('Помилка завантаження призначень', error);
-    }
+    } catch (error) { console.error('Помилка завантаження', error); }
   };
 
   useEffect(() => {
@@ -95,10 +76,27 @@ const Materials = () => {
     if (user?.role === 'teacher') fetchAssignments();
   }, [user]);
 
-  // --- ОБРОБКА ФОРМИ ЗАВАНТАЖЕННЯ ---
+  const handleDeleteMaterial = async (id: number) => {
+    if (!window.confirm('Видалити цей навчальний матеріал?')) return;
+    try {
+      await api.delete(`/materials/${id}`);
+      fetchMaterials();
+    } catch (error) { alert('Помилка видалення матеріалу'); }
+  };
+
+  // --- БЕЗПЕЧНЕ ЗАВАНТАЖЕННЯ ---
+  const handleDownload = async (fileUrl: string) => {
+    try {
+      const filename = fileUrl.split('/').pop();
+      const res = await api.get(`/files/${filename}`, { responseType: 'blob' });
+      saveAs(res.data, filename || 'document');
+    } catch (error) {
+      alert('Помилка завантаження. Файл недоступний або у вас немає прав.');
+    }
+  };
+
   const onSubmit = async (data: UploadForm) => {
     try {
-      // Оскільки ми відправляємо файл, потрібно використовувати FormData (multipart/form-data)
       const formData = new FormData();
       formData.append('title', data.title);
       formData.append('teacher_subject_id', data.teacher_subject_id);
@@ -107,84 +105,52 @@ const Materials = () => {
       if (data.type === 'link') {
         formData.append('url', data.url!);
       } else {
-        if (!selectedFile) {
-          alert('Будь ласка, оберіть файл');
-          return;
-        }
+        if (!selectedFile) { alert('Будь ласка, оберіть файл'); return; }
         formData.append('file', selectedFile);
       }
 
-      await api.post('/materials', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await api.post('/materials', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 
       setIsModalOpen(false);
       reset();
       setSelectedFile(null);
-      fetchMaterials(); // Оновлюємо список
-    } catch (error: any) {
-      alert(error.response?.data?.message || 'Помилка завантаження');
-    }
+      fetchMaterials();
+    } catch (error: any) { alert(error.response?.data?.message || 'Помилка завантаження'); }
   };
 
-  // --- ДОПОМІЖНІ ФУНКЦІЇ ---
   const getIcon = (type: string) => {
     switch (type) {
       case 'pdf': return <FileText className="text-status-danger" />;
       case 'ppt': return <Presentation className="text-status-warning" />;
-      case 'doc': return <File className="text-primary-600" />;
+      case 'doc': return <FileIcon className="text-primary-600" />;
       case 'video': return <Video className="text-purple-500" />;
       case 'link': return <LinkIcon className="text-accent-400" />;
-      default: return <File />;
+      default: return <FileIcon />;
     }
   };
 
-  const getFileUrl = (url: string) => {
-    if (url.startsWith('http')) return url;
-    return `http://localhost:5000${url}`; // Додаємо хост бекенду для статичних файлів
-  };
-
-  // Фільтрація та сортування на клієнті (оптимізовано)
   const filteredMaterials = useMemo(() => {
     let result = [...materials];
-
-    // Пошук та фільтр
     result = result.filter(m => {
       const matchesSearch = m.title.toLowerCase().includes(search.toLowerCase());
       const matchesType = typeFilter ? m.type === typeFilter : true;
       return matchesSearch && matchesType;
     });
-
-    // Сортування (найновіші зверху)
     result.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime());
-
     return result;
   }, [materials, search, typeFilter]);
 
   return (
     <div className="space-y-6">
-      {/* HEADER & CONTROLS */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
         <div className="flex-1 w-full flex flex-wrap gap-4">
-          {/* Пошук */}
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Пошук матеріалів..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-primary-50 border border-primary-100 rounded-lg focus:ring-2 focus:ring-primary-400 outline-none"
-            />
+            <input type="text" placeholder="Пошук матеріалів..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-primary-50 border border-primary-100 rounded-lg focus:ring-2 focus:ring-primary-400 outline-none" />
           </div>
-          {/* Фільтр по типу */}
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <select 
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="pl-10 pr-8 py-2 bg-primary-50 border border-primary-100 rounded-lg focus:ring-2 focus:ring-primary-400 outline-none appearance-none"
-            >
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="pl-10 pr-8 py-2 bg-primary-50 border border-primary-100 rounded-lg focus:ring-2 focus:ring-primary-400 outline-none appearance-none">
               <option value="">Всі типи файлів</option>
               <option value="pdf">PDF Документи</option>
               <option value="ppt">Презентації (PPT)</option>
@@ -196,7 +162,6 @@ const Materials = () => {
         </div>
       </div>
 
-      {/* GRID МАТЕРІАЛІВ */}
       {filteredMaterials.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
           <p className="text-slate-500">Матеріалів не знайдено.</p>
@@ -217,23 +182,30 @@ const Materials = () => {
               </h3>
               
               <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
-                <span className="text-xs text-slate-500">
-                  {new Date(material.uploaded_at).toLocaleDateString('uk-UA')}
-                </span>
+                <span className="text-xs text-slate-500">{new Date(material.uploaded_at).toLocaleDateString('uk-UA')}</span>
                 
-                {/* Блок з кнопками (Завантажити + Видалити) */}
                 <div className="flex gap-2">
-                  <a 
-                    href={getFileUrl(material.url)} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="p-2 text-primary-600 bg-primary-50 hover:bg-primary-400 hover:text-white rounded-lg transition-colors"
-                    title="Відкрити/Завантажити"
-                  >
-                    <Download size={18} />
-                  </a>
+                  {/* ПЕРЕВІРКА: Якщо лінк - звичайне посилання, якщо файл - кнопка handleDownload */}
+                  {material.type === 'link' ? (
+                    <a 
+                      href={material.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 text-primary-600 bg-primary-50 hover:bg-primary-400 hover:text-white rounded-lg transition-colors"
+                      title="Відкрити посилання"
+                    >
+                      <ExternalLink size={18} />
+                    </a>
+                  ) : (
+                    <button 
+                      onClick={() => handleDownload(material.url)}
+                      className="p-2 text-primary-600 bg-primary-50 hover:bg-primary-400 hover:text-white rounded-lg transition-colors"
+                      title="Завантажити файл"
+                    >
+                      <Download size={18} />
+                    </button>
+                  )}
                   
-                  {/* Кнопка видалення стоїть ПОРУЧ із завантаженням, тому material.id доступний */}
                   {user?.role !== 'student' && (
                     <button 
                       onClick={() => handleDeleteMaterial(material.id)}
@@ -250,7 +222,7 @@ const Materials = () => {
         </div>
       )}
 
-      {/* МОДАЛЬНЕ ВІКНО ЗАВАНТАЖЕННЯ */}
+      {/* МОДАЛЬНЕ ВІКНО ЗАВАНТАЖЕННЯ ЗАЛИШАЄТЬСЯ БЕЗ ЗМІН */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">

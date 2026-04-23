@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { BookOpen, Calendar, Plus, X, Edit2, Trash2, Upload, CheckCircle, XCircle, FileText, MessageSquare } from 'lucide-react';
 import api from '../api/axios';
+import { saveAs } from 'file-saver';
 
 // --- ІНТЕРФЕЙСИ ---
 interface HomeworkItem {
@@ -111,6 +112,17 @@ const Homework = () => {
     } catch (error: any) { alert(error.response?.data?.message || 'Помилка відправки роботи'); }
   };
 
+  const handleDownload = async (fileUrl: string) => {
+    try {
+      const filename = fileUrl.split('/').pop();
+      // Звертаємося до захищеного роуту, axios автоматично додасть JWT
+      const res = await api.get(`/files/${filename}`, { responseType: 'blob' });
+      saveAs(res.data, filename || 'document');
+    } catch (error) {
+      alert('Помилка завантаження. Файл недоступний або у вас немає прав.');
+    }
+  };
+
   // --- ЛОГІКА ПЕРЕВІРКИ РОБІТ (ВЧИТЕЛЬ) ---
   const openReviewModal = async (hwId: number) => {
     setReviewModalOpen(true);
@@ -133,7 +145,6 @@ const Homework = () => {
     } catch (error) { alert('Помилка оновлення статусу'); }
   };
 
-  const getFileUrl = (url: string) => url.startsWith('http') ? url : `http://localhost:5000${url}`;
   const isOverdue = (dateString: string) => new Date(dateString) < new Date();
 
   if (isLoading) return <div className="p-8 text-center text-slate-500">Завантаження завдань...</div>;
@@ -314,9 +325,9 @@ const Homework = () => {
                       
                       <div className="flex items-center justify-between mt-2 pt-2">
                         {sub.file_url ? (
-                          <a href={getFileUrl(sub.file_url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary-500 hover:text-primary-700 text-sm font-medium">
+                          <button onClick={() => sub.file_url && handleDownload(sub.file_url)} className="flex items-center gap-1 text-primary-500 hover:text-primary-700 text-sm font-medium">
                             <FileText size={16} /> Відкрити файл
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-sm text-slate-400">Файл не прикріплено</span>
                         )}

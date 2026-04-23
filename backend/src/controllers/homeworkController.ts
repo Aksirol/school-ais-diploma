@@ -4,7 +4,7 @@ import { Homework, TeacherSubject, Subject, Class, Student, User, HomeworkSubmis
 
 export const createHomework = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { title, description, due_date, teacher_subject_id } = req.body;
+    const { title, description, due_date, teacher_subject_id, requires_file } = req.body;
     const user = req.user!;
 
     // Перевірка доступу (тільки призначений вчитель може задати ДЗ)
@@ -14,7 +14,7 @@ export const createHomework = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const homework = await Homework.create({ title, description, due_date, teacher_subject_id });
+    const homework = await Homework.create({ title, description, due_date, teacher_subject_id, requires_file });
     res.status(201).json(homework);
   } catch (error: any) {
     res.status(500).json({ message: 'Помилка створення ДЗ', error: error.message });
@@ -125,6 +125,11 @@ export const submitHomework = async (req: AuthRequest, res: Response): Promise<v
     
     if (today > dueDate) {
       res.status(400).json({ message: 'Термін здачі цього завдання вже минув' });
+      return;
+    }
+
+    if (homework.requires_file && !req.file) {
+      res.status(400).json({ message: 'Для цього завдання обов\'язково потрібно прикріпити файл роботи' });
       return;
     }
 

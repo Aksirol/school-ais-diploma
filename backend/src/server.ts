@@ -19,6 +19,7 @@ import scheduleRoutes from './routes/scheduleRoutes';
 // Імпортуємо головний файл моделей, щоб Sequelize знав про них і їхні зв'язки
 // ДО того, як відбудеться синхронізація
 import './models'; 
+import fileRoutes from './routes/fileRoutes';
 
 dotenv.config();
 
@@ -39,7 +40,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/academic', academicRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/messages', messageRoutes);
-app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+app.use('/api/files', fileRoutes);
 app.use('/api/homework', homeworkRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/schedule', scheduleRoutes);

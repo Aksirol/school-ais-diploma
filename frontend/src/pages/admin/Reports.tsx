@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, Users, GraduationCap, Award, BookOpen } from 'lucide-react';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
+import { Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const Reports = () => {
   const { user } = useAuth();
@@ -107,6 +110,32 @@ const Reports = () => {
     ? (classAverages.reduce((sum, c) => sum + c.avg, 0) / classAverages.length).toFixed(1)
     : '0.0';
 
+    const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.addFont('Helvetica', 'Helvetica', 'normal'); // Якщо є проблеми з кирилицею, потрібен кастомний шрифт
+    
+    doc.setFontSize(18);
+    doc.text('Аналітичний звіт закладу освіти', 14, 20);
+    
+    doc.setFontSize(12);
+    doc.text(`Загальна кількість учнів: ${stats.students}`, 14, 30);
+    doc.text(`Загальна кількість педагогів: ${stats.teachers}`, 14, 38);
+    doc.text(`Середній бал по закладу: ${totalAvg}`, 14, 46);
+
+    const tableData = classAverages.map((c, idx) => [idx + 1, c.name, c.avg.toString()]);
+
+    // @ts-ignore (через типізацію плагіна)
+    doc.autoTable({
+      startY: 55,
+      head: [['#', 'Клас / Предмет', 'Середній бал']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [14, 165, 233] }
+    });
+
+    doc.save(`School_Report_${new Date().toLocaleDateString('uk-UA')}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -117,6 +146,9 @@ const Reports = () => {
         <p className="text-slate-500">
           {user?.role === 'admin' ? 'Зведені дані про успішність та активність користувачів' : 'Статистика по ваших класах та предметах'}
         </p>
+        <button onClick={exportToPDF} className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg font-bold">
+          <Download size={20} /> Експорт у PDF
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
