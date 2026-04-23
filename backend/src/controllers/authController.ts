@@ -11,6 +11,15 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   const t = await sequelize.transaction();
   
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ 
+        message: 'Помилка валідації даних', 
+        errors: errors.array() 
+      });
+      return;
+    }
+
     const { first_name, last_name, middle_name, email, password, role, class_id } = req.body;
 
     if (role === 'teacher' && (!middle_name || middle_name.trim() === '')) {

@@ -20,22 +20,29 @@ const storage = multer.diskStorage({
 });
 
 // Фільтр MIME-типів
-const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (req: any, file: any, cb: any) => {
+  // 1. Допустимі MIME-типи
   const allowedMimeTypes = [
-    'application/pdf', // PDF
-    'application/msword', // DOC
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
-    'application/vnd.ms-powerpoint', // PPT
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
-    'video/mp4', // Відео
-    'video/webm'
+    'application/pdf', 
+    'application/msword', 
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+    'application/vnd.ms-powerpoint', 
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', 
+    'video/mp4', 'image/jpeg', 'image/png'
   ];
+  
+  // 2. Допустимі розширення файлів
+  const allowedExtensions = /pdf|doc|docx|ppt|pptx|mp4|jpg|jpeg|png/;
 
-  if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Недопустимий формат файлу. Дозволені: PDF, DOC/DOCX, PPT/PPTX, MP4, WEBM.'));
+  // Перевіряємо обидва параметри
+  const isMimeValid = allowedMimeTypes.includes(file.mimetype);
+  const isExtensionValid = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
+
+  if (isMimeValid && isExtensionValid) {
+    return cb(null, true);
   }
+  
+  cb(new Error('Неприпустимий формат файлу. Або розширення не співпадає з типом контенту.'), false);
 };
 
 export const upload = multer({

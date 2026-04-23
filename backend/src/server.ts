@@ -66,6 +66,13 @@ const startServer = async () => {
     // для уникнення ризику випадкової втрати даних при зміні типів колонок.
     const isDev = process.env.NODE_ENV !== 'production';
     if (isDev) {
+      
+      if (!process.env.JWT_SECRET) {
+        console.error('КРИТИЧНА ПОМИЛКА: Змінна середовища JWT_SECRET не задана!');
+        console.error('Сервер зупинено. Додайте JWT_SECRET у файл .env');
+        process.exit(1); // Зупиняємо процес з кодом помилки
+      }
+
       await sequelize.sync({ alter: true });
       console.log('Таблиці бази даних успішно синхронізовано (Development mode).');
     } else {
