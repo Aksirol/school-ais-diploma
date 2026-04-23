@@ -5,7 +5,10 @@ import { AuthRequest } from '../middlewares/authMiddleware';
 
 export const getPendingUsers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const users = await User.findAll({ where: { is_approved: false }, attributes: { exclude: ['password'] } });
+    const users = await User.findAll({ 
+      where: { is_approved: false }, 
+      attributes: { exclude: ['password_hash'] } // Виправлено з 'password'
+    });
     res.json(users);
   } catch (error) { res.status(500).json({ message: 'Помилка завантаження користувачів' }); }
 };
@@ -45,7 +48,7 @@ export const getAllActiveUsers = async (req: AuthRequest, res: Response): Promis
   try {
     const users = await User.findAll({ 
       where: { is_approved: true }, 
-      attributes: { exclude: ['password'] },
+      attributes: { exclude: ['password_hash'] }, // Виправлено з 'password'
       order: [['role', 'ASC'], ['last_name', 'ASC']]
     });
     res.json(users);

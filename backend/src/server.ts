@@ -26,7 +26,12 @@ const app: Express = express();
 const PORT = process.env.PORT || 5000;
 
 // --- Мідлвари (Middlewares) ---
-app.use(cors()); // Дозволяє фронтенду робити запити до бекенду
+const corsOptions = {
+  // Дозволяємо доступ тільки з фронтенду (локально або з домену продакшену)
+  origin: process.env.CLIENT_URL || 'http://localhost:5173', 
+  credentials: true, // Дозволяє передавати куки/токени авторизації
+};
+app.use(cors(corsOptions)); // Дозволяє фронтенду робити запити до бекенду
 app.use(express.json()); // Дозволяє серверу розуміти JSON у тілі запиту
 app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);

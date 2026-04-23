@@ -135,12 +135,22 @@ export const updateGrade = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const deleteGrade = async (req: AuthRequest, res: Response) => {
+export const deleteGrade = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const grade = await Grade.findByPk(id);
-    if (!grade) return res.status(404).json({ message: 'Оцінку не знайдено' });
+    if (!grade) {
+      res.status(404).json({ message: 'Оцінку не знайдено' }); 
+      return;
+    }
     
+    // БЛОК БЕЗПЕКИ: Перевірка прав
+    const assignment = await TeacherSubject.findByPk(grade.teacher_subject_id);
+    if (assignment?.teacher_id !== req.user!.id && req.user!.role !== 'admin') {
+      res.status(403).json({ message: 'Немає прав для видалення цієї оцінки' }); 
+      return;
+    }
+
     await grade.destroy();
     res.json({ message: 'Оцінку видалено' });
   } catch (error) {

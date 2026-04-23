@@ -146,7 +146,16 @@ export const getSubmissions = async (req: AuthRequest, res: Response): Promise<v
   try {
     const homework_id = req.params.id;
     
-    // Тут також варто додати перевірку, чи належить це ДЗ саме цьому вчителю
+    // БЛОК БЕЗПЕКИ
+    const homework = await Homework.findByPk(homework_id);
+    if (!homework) { res.status(404).json({ message: 'ДЗ не знайдено' }); return; }
+
+    const assignment = await TeacherSubject.findByPk(homework.teacher_subject_id);
+    if (assignment?.teacher_id !== req.user!.id && req.user!.role !== 'admin') {
+      res.status(403).json({ message: 'Тільки автор завдання може переглядати роботи' }); 
+      return;
+    }
+
     const submissions = await HomeworkSubmission.findAll({
       where: { homework_id },
       include: [
@@ -157,7 +166,7 @@ export const getSubmissions = async (req: AuthRequest, res: Response): Promise<v
 
     res.json(submissions);
   } catch (error: any) {
-    res.status(500).json({ message: 'Помилка завантаження робіт', error: error.message });
+    res.status(500).json({ message: 'Помилка завантаження робіт' });
   }
 };
 
@@ -165,16 +174,23 @@ export const getSubmissions = async (req: AuthRequest, res: Response): Promise<v
 export const reviewSubmission = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { subId } = req.params;
-    const { status, teacher_comment } = req.body; // status: 'accepted' | 'rejected'
+    const { status, teacher_comment } = req.body; 
 
     const submission = await HomeworkSubmission.findByPk(subId);
-    if (!submission) {
-      res.status(404).json({ message: 'Роботу не знайдено' }); return;
+    if (!submission) { res.status(404).json({ message: 'Роботу не знайдено' }); return; }
+
+    // БЛОК БЕЗПЕКИ
+    const homework = await Homework.findByPk(submission.homework_id);
+    const assignment = await TeacherSubject.findByPk(homework?.teacher_subject_id);
+    
+    if (assignment?.teacher_id !== req.user!.id && req.user!.role !== 'admin') {
+      res.status(403).json({ message: 'Тільки автор завдання може перевіряти ці роботи' }); 
+      return;
     }
 
     await submission.update({ status, teacher_comment });
     res.json({ message: 'Статус роботи оновлено', submission });
   } catch (error: any) {
-    res.status(500).json({ message: 'Помилка перевірки роботи', error: error.message });
+    res.status(500).json({ message: 'Помилка перевірки роботи' });
   }
 };
