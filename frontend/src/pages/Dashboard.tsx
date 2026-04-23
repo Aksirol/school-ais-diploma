@@ -9,10 +9,10 @@ import {
   MessageSquare, 
   BarChart3, 
   Users, 
-  GraduationCap 
+  GraduationCap,
+  Briefcase // Додано нову іконку
 } from 'lucide-react';
 
-// Загальний конфіг усіх можливих модулів системи
 const ALL_MODULES = [
   {
     id: 'grades',
@@ -81,9 +81,18 @@ const ALL_MODULES = [
   {
     id: 'admin_academic',
     title: 'Академічне управління',
-    description: 'Налаштування класів, предметів та призначення педагогів.',
+    description: 'Налаштування та створення Класів і Предметів.',
     icon: GraduationCap,
     path: '/admin/academic',
+    allowedRoles: ['admin'],
+  },
+  // ОСЬ НОВИЙ БЛОК ДЛЯ ПРИВ'ЯЗКИ ВИКЛАДАЧІВ:
+  {
+    id: 'admin_assignments',
+    title: 'Розподіл навантаження',
+    description: 'Прив\'язка викладачів до предметів та конкретних класів.',
+    icon: Briefcase,
+    path: '/admin/assignments',
     allowedRoles: ['admin'],
   },
 ];
@@ -91,7 +100,6 @@ const ALL_MODULES = [
 const Dashboard = () => {
   const { user } = useAuth();
 
-  // Фільтруємо модулі: залишаємо лише ті, де роль користувача є в масиві allowedRoles
   const availableModules = ALL_MODULES.filter(module => 
     user?.role && module.allowedRoles.includes(user.role)
   );
@@ -107,7 +115,6 @@ const Dashboard = () => {
         </p>
       </div>
 
-      {/* Модульна сітка */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {availableModules.map((module) => {
           const IconComponent = module.icon;

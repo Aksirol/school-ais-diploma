@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { User, Lock, Save, ShieldCheck, AlertCircle } from 'lucide-react';
+import { User, Lock, Save, ShieldCheck, AlertCircle, LogOut } from 'lucide-react'; // Додали LogOut
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
@@ -26,7 +26,7 @@ const profileSchema = z.object({
 type ProfileForm = z.infer<typeof profileSchema>;
 
 const Profile = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<ProfileForm>({
@@ -132,7 +132,17 @@ const Profile = () => {
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-100 flex justify-end">
+          <div className="pt-6 border-t border-slate-100 flex justify-between items-center">
+            {/* Кнопка виходу */}
+            <button
+              type="button"
+              onClick={logout}
+              className="text-status-danger hover:bg-status-danger/10 px-4 py-2.5 rounded-xl font-bold transition-all flex items-center gap-2"
+            >
+              <LogOut size={20} /> Вийти з акаунта
+            </button>
+
+            {/* Кнопка збереження */}
             <button
               type="submit"
               disabled={isSubmitting}
