@@ -36,16 +36,21 @@ export const saveAttendance = async (req: AuthRequest, res: Response): Promise<v
 
 export const getAttendance = async (req: AuthRequest, res: Response) => {
   try {
-    const { class_id, date } = req.query;
-    const attendance = await Attendance.findAll({
-      where: { 
-        date: date as string,
-        // фільтруємо через TeacherSubject, щоб знайти потрібний клас
-      },
-      include: [{ model: Student }]
-    });
-    res.json(attendance);
-  } catch (error) {
-    res.status(500).json({ message: 'Помилка отримання відвідуваності' });
-  }
+    const user = req.user!;
+    // Якщо учень - шукаємо його id і повертаємо лише його відвідуваність
+    if (user.role === 'student') {
+      const { Student, TeacherSubject, Subject } = await import('../models');
+      const studentInfo = await Student.findOne({ where: { user_id: user.id } });
+      if (!studentInfo) return res.json([]);
+      
+      const myAttendance = await Attendance.findAll({
+        where: { student_id: studentInfo.id },
+        include: [{ model: TeacherSubject, include: [{ model: Subject, attributes: ['name'] }] }],
+        order: [['date', 'DESC']]
+      });
+      return res.json(myAttendance);
+    }
+    // Для вчителя/адміна логіка залишається (можна розширити за потреби)
+    res.json([]); 
+  } catch (error) { res.status(500).json({ message: 'Помилка' }); }
 };

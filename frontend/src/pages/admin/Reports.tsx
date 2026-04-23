@@ -45,15 +45,13 @@ const Reports = () => {
       try {
         const [classesRes, usersRes] = await Promise.all([
           api.get('/academic/classes'),
-          api.get('/admin/users/pending') // Якщо немає окремого роуту на всіх юзерів, беремо звідси
+          api.get('/admin/users/active') // ЗМІНЕНО З pending НА active
         ]);
         
-        // Для демонстрації диплому ми можемо частково симулювати цифри, 
-        // якщо база ще порожня, або брати реальні:
         setStats({
-          classes: classesRes.data.length || 12,
-          teachers: usersRes.data.filter((u: any) => u.role === 'teacher').length || 18,
-          students: usersRes.data.filter((u: any) => u.role === 'student').length || 342,
+          classes: classesRes.data.length || 0,
+          teachers: usersRes.data.filter((u: any) => u.role === 'teacher').length || 0,
+          students: usersRes.data.filter((u: any) => u.role === 'student').length || 0,
         });
       } catch (error) {
         console.error('Помилка завантаження статистики', error);

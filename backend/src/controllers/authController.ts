@@ -136,15 +136,14 @@ export const updateProfile = async (req: AuthRequest, res: Response): Promise<vo
       }
       
       // ВИПРАВЛЕНО: Використовуємо getDataValue для читання
-      const isMatch = await bcrypt.compare(current_password, user.getDataValue('password'));
+      const isMatch = await bcrypt.compare(current_password, user.getDataValue('password_hash'));
       if (!isMatch) {
         res.status(400).json({ message: 'Поточний пароль невірний' });
         return;
       }
 
       const salt = await bcrypt.genSalt(10);
-      // ВИПРАВЛЕНО: Використовуємо setDataValue для запису
-      user.setDataValue('password', await bcrypt.hash(new_password, salt));
+      user.setDataValue('password_hash', await bcrypt.hash(new_password, salt));
     }
 
     await user.save();

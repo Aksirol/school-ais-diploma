@@ -13,10 +13,17 @@ const Attendance = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<Record<number, 'present' | 'absent' | 'late'>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [myAttendance, setMyAttendance] = useState<any[]>([]);
 
   useEffect(() => {
     if (user?.role === 'teacher') {
       api.get('/assignments').then(res => setAssignments(res.data)).catch(console.error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.role === 'student') {
+      api.get('/attendance').then(res => setMyAttendance(res.data)).catch(console.error);
     }
   }, [user]);
 
@@ -65,10 +72,42 @@ const Attendance = () => {
 
   if (user?.role === 'student') {
     return (
-      <div className="bg-white p-10 rounded-xl shadow-sm text-center border border-slate-200">
-        <ClipboardCheck size={48} className="mx-auto text-primary-300 mb-4" />
-        <h2 className="text-2xl font-bold text-slate-800">Ваша відвідуваність</h2>
-        <p className="text-slate-500 mt-2">Тут буде відображатись статистика ваших пропусків.</p>
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 mb-2">
+            <ClipboardCheck className="text-accent-400" /> Ваша відвідуваність
+          </h2>
+          <p className="text-slate-500">Історія ваших пропусків та запізнень</p>
+        </div>
+        
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          {myAttendance.length === 0 ? (
+            <div className="p-10 text-center text-slate-500">У вас немає відміток про пропуски.</div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-200">
+                  <th className="p-4 font-medium w-32">Дата</th>
+                  <th className="p-4 font-medium">Предмет</th>
+                  <th className="p-4 font-medium text-center w-32">Статус</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myAttendance.map((record: any) => (
+                  <tr key={record.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td className="p-4 text-slate-600">{new Date(record.date).toLocaleDateString('uk-UA')}</td>
+                    <td className="p-4 font-bold text-slate-800">{record.TeacherSubject?.Subject?.name}</td>
+                    <td className="p-4 text-center">
+                      <span className={`px-3 py-1 rounded-md text-xs font-bold ${record.status === 'absent' ? 'bg-status-danger/10 text-status-danger' : 'bg-status-warning/10 text-status-warning'}`}>
+                        {record.status === 'absent' ? 'Відсутній' : 'Запізнення'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     );
   }

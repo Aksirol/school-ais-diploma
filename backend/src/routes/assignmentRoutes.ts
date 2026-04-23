@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { authenticate } from '../middlewares/authMiddleware';
 import { isAdmin } from '../middlewares/adminMiddleware';
-import { assignTeacher, getAssignments } from '../controllers/assignmentController';
+import { assignTeacher, getAssignments, deleteAssignment } from '../controllers/assignmentController';
 
 const router = Router();
 
@@ -21,5 +21,7 @@ router.get('/', getAssignments);
 
 // POST /api/assignments (Тільки Адміністратор)
 router.post('/', isAdmin, assignmentValidation, assignTeacher);
+
+router.delete('/:id', isAdmin, deleteAssignment);
 
 export default router;

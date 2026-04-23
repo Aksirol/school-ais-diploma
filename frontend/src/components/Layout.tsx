@@ -1,4 +1,4 @@
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, User as UserIcon } from 'lucide-react'; // Іконки
 
@@ -32,24 +32,17 @@ const Layout = () => {
               </Link>
             </div>
             
-            <div className="flex items-center gap-4">
+            <Link to="/profile" className="flex items-center gap-3 hover:bg-slate-50 p-2 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-100">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-slate-800">
-                  {user?.first_name} {user?.last_name}
+                <p className="text-sm font-bold text-slate-700 leading-tight">
+                  {user?.last_name} {user?.first_name}
                 </p>
-                <p className="text-xs text-slate-500">{getRoleName(user?.role)}</p>
+                <p className="text-xs text-slate-500 font-medium capitalize">{user?.role}</p>
               </div>
-              <div className="bg-white p-2 rounded-full text-primary-400 border border-primary-200">
-                <UserIcon size={20} />
+              <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-bold border-2 border-white shadow-sm">
+                {user?.last_name[0]}{user?.first_name[0]}
               </div>
-              <button 
-                onClick={handleLogout}
-                className="ml-2 text-slate-500 hover:text-status-danger transition-colors p-2"
-                title="Вийти"
-              >
-                <LogOut size={20} />
-              </button>
-            </div>
+            </Link>
           </div>
         </div>
       </header>
