@@ -18,12 +18,18 @@ Schedule.init(
       references: { model: 'teacher_subjects', key: 'id' },
       onDelete: 'CASCADE'
     },
-    weekday: { 
-      type: DataTypes.INTEGER, 
-      allowNull: false,
-      validate: { min: 1, max: 5 } // Лише будні дні
-    },
-    start_time: { type: DataTypes.TIME, allowNull: false },
+    class_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  day_of_week: {            // ЗАМІНЕНО З weekday
+    type: DataTypes.INTEGER, 
+    allowNull: false,
+  },
+  lesson_number: {          // ЗАМІНЕНО З start_time
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
     room: { type: DataTypes.STRING, allowNull: false },
   },
   { sequelize, tableName: 'schedule', timestamps: false }

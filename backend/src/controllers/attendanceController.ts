@@ -4,53 +4,63 @@ import { Attendance, Student, TeacherSubject } from '../models';
 
 export const saveAttendance = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { date, teacher_subject_id, records } = req.body; 
-    // records - об'єкт формату { studentId: 'present' | 'absent' | 'late' }
-    const user = req.user!;
+    const { date, teacher_subject_id, records } = req.body;
 
-    const assignment = await TeacherSubject.findOne({ where: { id: teacher_subject_id, teacher_id: user.id } });
-    if (!assignment && user.role !== 'admin') {
-      res.status(403).json({ message: 'Доступ заборонено' });
-      return;
-    }
+    // 1. Видаляємо старі записи на цю дату для цього предмета (запобігаємо дублікатам)
+    await Attendance.destroy({ 
+      where: { teacher_subject_id, lesson_date: date } 
+    });
 
-    // Формуємо масив для збереження
+    // 2. Формуємо масив для нового збереження (мапимо date -> lesson_date)
     const attendanceData = Object.entries(records).map(([student_id, status]) => ({
       student_id: Number(student_id),
-      teacher_subject_id,
-      date,
+      teacher_subject_id: Number(teacher_subject_id),
+      lesson_date: date, // Ось тут відбувається правильний мапінг!
       status
     }));
 
-    // Зберігаємо або оновлюємо існуючі записи (якщо вчитель змінив статус)
-    // Увага: для коректної роботи updateOnDuplicate у моделі Attendance має бути унікальний індекс на (student_id, teacher_subject_id, date)
-    await Attendance.bulkCreate(attendanceData as any, { 
-      updateOnDuplicate: ['status'] 
-    });
-
-    res.status(200).json({ message: 'Журнал відвідуваності збережено' });
+    await Attendance.bulkCreate(attendanceData);
+    
+    res.status(201).json({ message: 'Відвідуваність збережено' });
   } catch (error: any) {
-    res.status(500).json({ message: 'Помилка збереження відвідуваності', error: error.message });
+    res.status(500).json({ message: 'Помилка збереження відвідуваності' });
   }
 };
 
-export const getAttendance = async (req: AuthRequest, res: Response) => {
+export const getAttendance = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const user = req.user!;
-    // Якщо учень - шукаємо його id і повертаємо лише його відвідуваність
+    const { Student, TeacherSubject, Subject, User } = await import('../models');
+
+    // ЛОГІКА ДЛЯ УЧНЯ
     if (user.role === 'student') {
-      const { Student, TeacherSubject, Subject } = await import('../models');
       const studentInfo = await Student.findOne({ where: { user_id: user.id } });
-      if (!studentInfo) return res.json([]);
+      if (!studentInfo) { res.json([]); return; }
       
       const myAttendance = await Attendance.findAll({
         where: { student_id: studentInfo.id },
         include: [{ model: TeacherSubject, include: [{ model: Subject, attributes: ['name'] }] }],
-        order: [['date', 'DESC']]
+        order: [['lesson_date', 'DESC']] // Виправлено на lesson_date
       });
-      return res.json(myAttendance);
+      res.json(myAttendance);
+      return;
     }
-    // Для вчителя/адміна логіка залишається (можна розширити за потреби)
-    res.json([]); 
-  } catch (error) { res.status(500).json({ message: 'Помилка' }); }
+
+    // ЛОГІКА ДЛЯ ВЧИТЕЛЯ ТА АДМІНА (отримання по фільтрах)
+    const { teacher_subject_id, date } = req.query;
+    const whereClause: any = {};
+    if (teacher_subject_id) whereClause.teacher_subject_id = teacher_subject_id;
+    if (date) whereClause.lesson_date = date;
+
+    const classAttendance = await Attendance.findAll({
+      where: whereClause,
+      include: [
+        { model: Student, include: [{ model: User, attributes: ['first_name', 'last_name', 'middle_name'] }] }
+      ]
+    });
+    
+    res.json(classAttendance);
+  } catch (error) { 
+    res.status(500).json({ message: 'Помилка завантаження відвідуваності' }); 
+  }
 };

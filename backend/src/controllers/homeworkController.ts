@@ -115,6 +115,19 @@ export const submitHomework = async (req: AuthRequest, res: Response): Promise<v
     const file_url = req.file ? `/uploads/${req.file.filename}` : null;
     const user = req.user!;
 
+    const homework = await Homework.findByPk(homework_id);
+    if (!homework) { res.status(404).json({ message: 'Завдання не знайдено' }); return; }
+    
+    // Якщо поточна дата (на початку дня) більша за due_date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(homework.due_date);
+    
+    if (today > dueDate) {
+      res.status(400).json({ message: 'Термін здачі цього завдання вже минув' });
+      return;
+    }
+
     if (user.role !== 'student') {
       res.status(403).json({ message: 'Тільки учні можуть здавати роботи' }); return;
     }

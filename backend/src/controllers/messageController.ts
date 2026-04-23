@@ -4,6 +4,7 @@ import { AuthRequest } from '../middlewares/authMiddleware';
 import { validationResult } from 'express-validator';
 import { Message, User, Student, TeacherSubject } from '../models';
 import { Op } from 'sequelize';
+import { sequelize } from '../config/database';
 
 // 1. Відправити повідомлення (1 на 1)
 export const sendMessage = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -34,6 +35,7 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+// 2. Масова розсилка всьому класу (тільки для педагога)
 // 2. Масова розсилка всьому класу (тільки для педагога)
 export const sendBroadcastMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -69,16 +71,12 @@ export const sendBroadcastMessage = async (req: AuthRequest, res: Response): Pro
       content
     }));
 
-    await Message.bulkCreate(messagesData);
+    // ВИПРАВЛЕНО: Один виклик bulkCreate з правильною змінною (messagesData)
+    const createdMessages = await Message.bulkCreate(messagesData, { returning: true });
 
-    // Отримуємо збережені повідомлення (щоб мати ID та дати) і розсилаємо
-    const savedMessages = await Message.findAll({
-      where: { sender_id: user.id, content },
-      order: [['id', 'DESC']],
-      limit: students.length
-    });
-
-    savedMessages.forEach(msg => {
+    // Одразу відправляємо у сокети створені повідомлення
+    createdMessages.forEach((msg: any) => {
+      // ВИПРАВЛЕНО: Використовуємо правильну назву кімнати (user_ID)
       getIO().to(`user_${msg.receiver_id}`).emit('newMessage', msg);
     });
 
@@ -115,44 +113,56 @@ export const getDialogues = async (req: AuthRequest, res: Response): Promise<voi
   try {
     const userId = req.user!.id;
 
-    // Шукаємо всі повідомлення, де користувач є відправником або отримувачем
-    const allMessages = await Message.findAll({
-      where: { [Op.or]: [{ sender_id: userId }, { receiver_id: userId }] },
+    // Крок 1: Знаходимо ID останніх повідомлень для кожного унікального діалогу
+    // Використовуємо LEAST і GREATEST, щоб (1->2) і (2->1) вважалися одним діалогом
+    const latestMessageIds: any = await Message.findAll({
+      attributes: [
+        [sequelize.fn('MAX', sequelize.col('id')), 'max_id']
+      ],
+      where: {
+        [Op.or]: [{ sender_id: userId }, { receiver_id: userId }]
+      },
+      group: [
+        sequelize.fn('LEAST', sequelize.col('sender_id'), sequelize.col('receiver_id')),
+        sequelize.fn('GREATEST', sequelize.col('sender_id'), sequelize.col('receiver_id'))
+      ],
+      raw: true
+    });
+
+    if (!latestMessageIds || latestMessageIds.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    const ids = latestMessageIds.map((m: any) => m.max_id);
+
+    // Крок 2: Витягуємо самі повідомлення разом з іменами партнерів
+    const recentMessages = await Message.findAll({
+      where: { id: { [Op.in]: ids } },
       include: [
         { model: User, as: 'Sender', attributes: ['id', 'first_name', 'last_name', 'role'] },
         { model: User, as: 'Receiver', attributes: ['id', 'first_name', 'last_name', 'role'] }
       ],
-      order: [['sent_at', 'DESC']]
+      order: [['created_at', 'DESC']]
     });
 
-    // Групуємо повідомлення по співрозмовниках за допомогою JS
-    // Групуємо повідомлення по співрозмовниках
-    const dialoguesMap = new Map();
-
-    allMessages.forEach(msg => {
-      // Конвертуємо екземпляр Sequelize у звичайний об'єкт і кажемо TS "довірся мені"
-      const msgData = msg.get({ plain: true }) as any; 
-      
-      // Визначаємо, хто є співрозмовником
-      const partner = msgData.sender_id === userId ? msgData.Receiver : msgData.Sender;
-
-      if (!dialoguesMap.has(partner.id)) {
-        dialoguesMap.set(partner.id, {
-          partner: partner,
-          lastMessage: { content: msgData.content, sent_at: msgData.sent_at, is_mine: msgData.sender_id === userId },
-          unreadCount: 0
-        });
-      }
-
-      // Якщо повідомлення від співрозмовника і воно не прочитане
-      if (msgData.sender_id === partner.id && !msgData.is_read) {
-        dialoguesMap.get(partner.id).unreadCount += 1;
-      }
+    // Крок 3: Форматуємо для фронтенду
+    const dialogues = recentMessages.map((msg: any) => {
+      const isSender = msg.sender_id === userId;
+      const partner = isSender ? msg.Receiver : msg.Sender;
+      return {
+        partnerId: partner.id,
+        partnerName: `${partner.last_name} ${partner.first_name}`,
+        partnerRole: partner.role,
+        lastMessage: msg.content,
+        timestamp: msg.created_at,
+        unreadCount: isSender ? 0 : (msg.is_read ? 0 : 1) // Базовий підрахунок непрочитаних
+      };
     });
 
-    res.status(200).json(Array.from(dialoguesMap.values()));
+    res.json(dialogues);
   } catch (error: any) {
-    res.status(500).json({ message: 'Помилка завантаження діалогів', error: error.message });
+    res.status(500).json({ message: 'Помилка завантаження діалогів' });
   }
 };
 

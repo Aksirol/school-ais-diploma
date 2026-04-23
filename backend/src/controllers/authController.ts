@@ -22,11 +22,15 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     const { first_name, last_name, middle_name, email, password, role, class_id } = req.body;
 
-    if (role === 'teacher' && (!middle_name || middle_name.trim() === '')) {
-      await t.rollback(); // Відкочуємо транзакцію при помилці
-      res.status(400).json({ message: 'Для педагога обов\'язково вказувати по батькові' });
-      return;
-    }
+  // 1. ПЕРЕНЕСЕНО СЮДИ: Рання перевірка до будь-яких звернень до БД
+  if (role === 'student' && !class_id) {
+    res.status(400).json({ message: 'Для учня необхідно вказати клас' });
+    return;
+  }
+  if (role === 'teacher' && (!middle_name || middle_name.trim() === '')) {
+    res.status(400).json({ message: 'Для педагога обов\'язково вказувати по батькові' });
+    return;
+  }
 
     const existingUser = await User.findOne({ where: { email }, transaction: t });
     if (existingUser) {
@@ -48,18 +52,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       class_id: role === 'student' ? class_id : null,
       is_approved: role === 'admin',
     }, { transaction: t });
-
-    if (role === 'student') {
-      if (!class_id) {
-        await t.rollback();
-        res.status(400).json({ message: 'Для реєстрації учня необхідно вказати ID класу.' });
-        return;
-      }
-      await Student.create(
-        { user_id: newUser.id, class_id },
-        { transaction: t }
-      );
-    }
 
     await t.commit(); // Успішно зберігаємо всі дані
     res.status(201).json({ message: 'Реєстрація успішна. Очікуйте підтвердження адміністратором.' });
@@ -108,6 +100,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         first_name: user.first_name,
         last_name: user.last_name,
+        email: user.email,
         middle_name: user.getDataValue('middle_name'), // Додаємо по батькові у відповідь логіну
         role: user.role
       }

@@ -49,7 +49,13 @@ HomeworkSubmission.init({
 }, { 
   sequelize, 
   tableName: 'homework_submissions', 
-  timestamps: false 
+  timestamps: false,
+  // ДОДАНО: Унікальний індекс для захисту від дублікатів (Race Condition)
+  indexes: [
+    {
+      unique: true,
+      fields: ['homework_id', 'student_id']
+    }
+  ]
 });
-
 export default HomeworkSubmission;
