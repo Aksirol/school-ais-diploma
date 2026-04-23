@@ -9,6 +9,7 @@ import api from '../api/axios';
 const profileSchema = z.object({
   first_name: z.string().min(2, "Ім'я занадто коротке"),
   last_name: z.string().min(2, "Прізвище занадто коротке"),
+  middle_name: z.string().optional(),
   current_password: z.string().optional(),
   new_password: z.string().min(6, "Пароль має бути мін. 6 символів").optional().or(z.literal('')),
   confirm_password: z.string().optional(),
@@ -33,6 +34,7 @@ const Profile = () => {
     defaultValues: {
       first_name: user?.first_name || '',
       last_name: user?.last_name || '',
+      middle_name: user?.middle_name || ''
     }
   });
 
@@ -43,6 +45,7 @@ const Profile = () => {
       const payload: any = {
         first_name: data.first_name,
         last_name: data.last_name,
+        middle_name: data.middle_name,
       };
       if (data.new_password) {
         payload.current_password = data.current_password;

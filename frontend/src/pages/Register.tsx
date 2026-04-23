@@ -6,9 +6,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 
 // Схема валідації Zod
+// Схема валідації Zod
 const registerSchema = z.object({
-  first_name: z.string().min(2, 'Ім\'я занадто коротке'),
-  last_name: z.string().min(2, 'Прізвище занадто коротке'),
+  first_name: z.string().min(2, 'Мінімум 2 символи'),
+  last_name: z.string().min(2, 'Мінімум 2 символи'),
+  middle_name: z.string().optional(),
   email: z.string().email('Невірний формат email'),
   password: z.string()
     .min(8, 'Мінімум 8 символів')
@@ -22,15 +24,24 @@ const registerSchema = z.object({
   message: 'Паролі не збігаються',
   path: ['passwordConfirm'],
 })
-.refine((data) => {
+// ВИПРАВЛЕНО: Використовуємо superRefine та передаємо (data, ctx)
+.superRefine((data, ctx) => {
   // Якщо це учень, class_id стає обов'язковим
   if (data.role === 'student' && (!data.class_id || data.class_id === '')) {
-    return false;
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Оберіть ваш клас',
+      path: ['class_id']
+    });
   }
-  return true;
-}, {
-  message: 'Оберіть ваш клас',
-  path: ['class_id'],
+  // Перевірка по батькові для вчителя
+  if (data.role === 'teacher' && (!data.middle_name || data.middle_name.trim() === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "По батькові обов'язкове для педагога",
+      path: ['middle_name']
+    });
+  }
 });
 
 type RegisterForm = z.infer<typeof registerSchema>;
@@ -138,6 +149,18 @@ const Register = () => {
               />
               {errors.last_name && <p className="text-status-danger text-xs mt-1">{errors.last_name.message}</p>}
             </div>
+            {/* ПО БАТЬКОВІ */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              По батькові {selectedRole === 'teacher' && <span className="text-status-danger">*</span>}
+            </label>
+            <input 
+              {...register('middle_name')} 
+              className={`w-full p-3 border rounded-xl outline-none transition-all ${errors.middle_name ? 'border-status-danger focus:ring-2 focus:ring-status-danger/20' : 'border-slate-200 focus:border-primary-400 focus:ring-2 focus:ring-primary-100'}`} 
+              placeholder="Іванович / Іванівна"
+            />
+            {errors.middle_name && <p className="text-status-danger text-xs mt-1">{errors.middle_name.message}</p>}
+          </div>
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-1">Ім'я *</label>
               <input

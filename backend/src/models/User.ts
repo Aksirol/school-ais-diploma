@@ -15,6 +15,10 @@ User.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     last_name: { type: DataTypes.STRING, allowNull: false },
+    middle_name: {
+      type: DataTypes.STRING,
+      allowNull: true, // В базі дозволяємо null (бо для учнів опціонально)
+    },
     first_name: { type: DataTypes.STRING, allowNull: false },
     email: { type: DataTypes.STRING, allowNull: false, unique: true },
     password_hash: { type: DataTypes.STRING, allowNull: false },

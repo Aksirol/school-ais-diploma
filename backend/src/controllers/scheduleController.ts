@@ -20,7 +20,7 @@ export const getScheduleByClass = async (req: AuthRequest, res: Response): Promi
           where: { class_id: targetClass.id },
           include: [
             { model: Subject, attributes: ['name'] },
-            { model: User, attributes: ['first_name', 'last_name'] } // Вчитель
+            { model: User, attributes: ['first_name', 'last_name', 'middle_name'] } // Вчитель
           ]
         }
       ],
@@ -28,13 +28,23 @@ export const getScheduleByClass = async (req: AuthRequest, res: Response): Promi
     });
 
     // Форматуємо дані для фронтенду, щоб вони відповідали нашій таблиці
-    const formattedSchedule = schedule.map((s: any) => ({
-      day: s.day_of_week,
-      lessonNum: s.lesson_number,
-      subject: s.TeacherSubject.Subject.name,
-      teacher: `${s.TeacherSubject.User.last_name} ${s.TeacherSubject.User.first_name[0]}.`,
-      room: s.room
-    }));
+    // Форматуємо дані для фронтенду, щоб вони відповідали нашій таблиці
+    const formattedSchedule = schedule.map((s: any) => {
+      // 1. Спочатку отримуємо користувача
+      const user = s.TeacherSubject.User;
+      
+      // 2. Формуємо ініціали (ПЕРЕВІРТЕ: атрибут 'middle_name' має бути доданий до `attributes` в запиті вище!)
+      const initials = `${user.first_name[0]}.${user.middle_name ? ' ' + user.middle_name[0] + '.' : ''}`;
+      
+      // 3. Повертаємо готовий об'єкт
+      return {
+        day: s.day_of_week,
+        lessonNum: s.lesson_number,
+        subject: s.TeacherSubject.Subject.name,
+        teacher: `${user.last_name} ${initials}`,
+        room: s.room
+      };
+    });
 
     res.status(200).json(formattedSchedule);
   } catch (error: any) {
