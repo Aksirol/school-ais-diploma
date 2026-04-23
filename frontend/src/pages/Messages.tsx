@@ -79,9 +79,14 @@ const Messages = () => {
 
   // --- ІНІЦІАЛІЗАЦІЯ SOCKET.IO ---
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const newSocket = io('http://localhost:5000', {
-      auth: { token }
+    if (!user) return;
+
+    // ДОДАНО: Динамічний URL для Docker та локальної розробки
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+    
+    const newSocket = io(socketUrl, {
+      path: '/socket.io/', // Важливо для Nginx проксі
+      withCredentials: true
     });
 
     setSocket(newSocket);

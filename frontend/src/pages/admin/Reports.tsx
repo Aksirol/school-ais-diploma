@@ -111,30 +111,30 @@ const Reports = () => {
     : '0.0';
 
     const exportToPDF = () => {
-    const doc = new jsPDF();
-    doc.addFont('Helvetica', 'Helvetica', 'normal'); // Якщо є проблеми з кирилицею, потрібен кастомний шрифт
-    
-    doc.setFontSize(18);
-    doc.text('Аналітичний звіт закладу освіти', 14, 20);
-    
-    doc.setFontSize(12);
-    doc.text(`Загальна кількість учнів: ${stats.students}`, 14, 30);
-    doc.text(`Загальна кількість педагогів: ${stats.teachers}`, 14, 38);
-    doc.text(`Середній бал по закладу: ${totalAvg}`, 14, 46);
+      const doc = new jsPDF();
+      
+      doc.setFontSize(18);
+      // Змінено на латиницю
+      doc.text('School Analytics Report', 14, 20); 
+      
+      doc.setFontSize(12);
+      doc.text(`Total Students: ${stats.students}`, 14, 30);
+      doc.text(`Total Teachers: ${stats.teachers}`, 14, 38);
+      doc.text(`Average School Grade: ${totalAvg}`, 14, 46);
 
-    const tableData = classAverages.map((c, idx) => [idx + 1, c.name, c.avg.toString()]);
+      const tableData = classAverages.map((c, idx) => [idx + 1, c.name, c.avg.toString()]);
 
-    // @ts-ignore (через типізацію плагіна)
-    doc.autoTable({
-      startY: 55,
-      head: [['#', 'Клас / Предмет', 'Середній бал']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [14, 165, 233] }
-    });
+      // @ts-ignore
+      doc.autoTable({
+        startY: 55,
+        head: [['#', 'Class / Subject', 'Average Grade']], // Змінено на латиницю
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [14, 165, 233] }
+      });
 
-    doc.save(`School_Report_${new Date().toLocaleDateString('uk-UA')}.pdf`);
-  };
+      doc.save(`School_Report_${new Date().toLocaleDateString('uk-UA')}.pdf`);
+    };
 
   return (
     <div className="space-y-6">

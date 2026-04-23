@@ -11,6 +11,12 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # ДОДАНО: Healthcheck для БД
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   pgadmin:
     image: dpage/pgadmin4
@@ -37,12 +43,15 @@ services:
       - DB_NAME=school_ais_db
       - JWT_SECRET=super_secret_diploma_key_2025
       - NODE_ENV=production
+      - CLIENT_URL=http://localhost # ДОДАНО: Вирішення CORS
     ports:
       - "5000:5000"
     volumes:
       - ./backend/uploads:/app/uploads
+    # ДОДАНО: Очікування повної готовності БД
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
