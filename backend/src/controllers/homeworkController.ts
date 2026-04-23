@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
-import { Homework, TeacherSubject, Subject, Class, Student } from '../models';
+import { Homework, TeacherSubject, Subject, Class, Student, User, HomeworkSubmission } from '../models';
 
 export const createHomework = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -102,5 +102,79 @@ export const deleteHomework = async (req: AuthRequest, res: Response): Promise<v
     res.json({ message: 'Завдання видалено' });
   } catch (error: any) {
     res.status(500).json({ message: 'Помилка видалення ДЗ', error: error.message });
+  }
+};
+
+// --- ЗДАЧА ТА ПЕРЕВІРКА ДОМАШНІХ ЗАВДАНЬ ---
+
+// 1. Учень здає роботу
+export const submitHomework = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const homework_id = req.params.id;
+    const { student_comment } = req.body;
+    const file_url = req.file ? `/uploads/${req.file.filename}` : null;
+    const user = req.user!;
+
+    if (user.role !== 'student') {
+      res.status(403).json({ message: 'Тільки учні можуть здавати роботи' }); return;
+    }
+
+    const student = await Student.findOne({ where: { user_id: user.id } });
+    if (!student) {
+      res.status(404).json({ message: 'Профіль учня не знайдено' }); return;
+    }
+
+    // Перевіряємо, чи не здавав він її вже (опціонально можна дозволити перезалив файлу)
+    let submission = await HomeworkSubmission.findOne({ where: { homework_id, student_id: student.id } });
+    
+    if (submission) {
+      // Якщо вже є, оновлюємо
+      await submission.update({ file_url: file_url || submission.file_url, student_comment, status: 'submitted' });
+    } else {
+      // Якщо немає, створюємо нову
+      submission = await HomeworkSubmission.create({ homework_id: Number(homework_id), student_id: student.id, file_url, student_comment });
+    }
+
+    res.status(201).json({ message: 'Роботу надіслано!', submission });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка відправки роботи', error: error.message });
+  }
+};
+
+// 2. Вчитель отримує список робіт для конкретного ДЗ
+export const getSubmissions = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const homework_id = req.params.id;
+    
+    // Тут також варто додати перевірку, чи належить це ДЗ саме цьому вчителю
+    const submissions = await HomeworkSubmission.findAll({
+      where: { homework_id },
+      include: [
+        { model: Student, include: [{ model: User, attributes: ['first_name', 'last_name', 'middle_name'] }] }
+      ],
+      order: [['submitted_at', 'DESC']]
+    });
+
+    res.json(submissions);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка завантаження робіт', error: error.message });
+  }
+};
+
+// 3. Вчитель оцінює/перевіряє роботу
+export const reviewSubmission = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { subId } = req.params;
+    const { status, teacher_comment } = req.body; // status: 'accepted' | 'rejected'
+
+    const submission = await HomeworkSubmission.findByPk(subId);
+    if (!submission) {
+      res.status(404).json({ message: 'Роботу не знайдено' }); return;
+    }
+
+    await submission.update({ status, teacher_comment });
+    res.json({ message: 'Статус роботи оновлено', submission });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Помилка перевірки роботи', error: error.message });
   }
 };

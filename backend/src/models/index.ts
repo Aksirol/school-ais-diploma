@@ -9,6 +9,7 @@ import { Schedule } from './Schedule';
 import { Homework } from './Homework';
 import { Material } from './Material';
 import { Message } from './Message';
+import HomeworkSubmission from './HomeworkSubmission';
 
 // --- НАЛАШТУВАННЯ ЗВ'ЯЗКІВ (FOREIGN KEYS) ---
 
@@ -58,8 +59,15 @@ Message.belongsTo(User, { as: 'Sender', foreignKey: 'sender_id' });
 User.hasMany(Message, { as: 'ReceivedMessages', foreignKey: 'receiver_id' });
 Message.belongsTo(User, { as: 'Receiver', foreignKey: 'receiver_id' });
 
+// --- ЗДАЧА ДОМАШНІХ ЗАВДАНЬ ---
+Homework.hasMany(HomeworkSubmission, { foreignKey: 'homework_id' });
+HomeworkSubmission.belongsTo(Homework, { foreignKey: 'homework_id' });
+
+Student.hasMany(HomeworkSubmission, { foreignKey: 'student_id' });
+HomeworkSubmission.belongsTo(Student, { foreignKey: 'student_id' });
+
 // Експортуємо всі 11 моделей
 export { 
   User, Class, Subject, Student, TeacherSubject, 
-  Grade, Attendance, Schedule, Homework, Material, Message 
+  Grade, Attendance, Schedule, Homework, Material, Message, HomeworkSubmission
 };
