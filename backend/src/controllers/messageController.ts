@@ -143,7 +143,7 @@ export const getDialogues = async (req: AuthRequest, res: Response): Promise<voi
         { model: User, as: 'Sender', attributes: ['id', 'first_name', 'last_name', 'role'] },
         { model: User, as: 'Receiver', attributes: ['id', 'first_name', 'last_name', 'role'] }
       ],
-      order: [['created_at', 'DESC']]
+      order: [['sent_at', 'DESC']]
     });
 
     // Крок 3: Форматуємо для фронтенду
