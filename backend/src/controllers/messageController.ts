@@ -150,15 +150,22 @@ export const getDialogues = async (req: AuthRequest, res: Response): Promise<voi
     const dialogues = recentMessages.map((msg: any) => {
       const isSender = msg.sender_id === userId;
       const partner = isSender ? msg.Receiver : msg.Sender;
+
+      // Захист від null якщо користувача видалено
+      if (!partner) return null;
+
       return {
-        partnerId: partner.id,
-        partnerName: `${partner.last_name} ${partner.first_name}`,
-        partnerRole: partner.role,
+        partner: {
+          id: partner.id,
+          first_name: partner.first_name,
+          last_name: partner.last_name,
+          role: partner.role,
+        },
         lastMessage: msg.content,
-        timestamp: msg.created_at,
-        unreadCount: isSender ? 0 : (msg.is_read ? 0 : 1) // Базовий підрахунок непрочитаних
+        timestamp: msg.sent_at,      // вже виправлено з created_at
+        unreadCount: isSender ? 0 : (msg.is_read ? 0 : 1)
       };
-    });
+    }).filter(Boolean);   // прибираємо null якщо partner не знайдено
 
     res.json(dialogues);
   } catch (error: any) {
